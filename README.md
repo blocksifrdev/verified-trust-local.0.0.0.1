@@ -55,6 +55,12 @@ Environment variables:
 
 Plugins are sourced for each account and can emit structured strings that are appended to JSON results. Each plugin must expose a `plugin_main` function and can read the `PLUGIN_USER` environment variable. Example: `plugins/ssh_keys.sh` counts SSH keys and flags keys older than 180 days; `plugins/firewall_check.sh` reports macOS firewall status.
 
+Network-focused plugins included in this build:
+
+- `plugins/remote_access.sh`: surfaces SSH, Apple Remote Events, Screen Sharing, and ARD enablement
+- `plugins/vpn_clients.sh`: inventories configured VPN profiles and connected tunnels, plus common client processes
+- `plugins/network_mounts.sh`: reports active SMB/AFP mounts and current `/Volumes` entries for the user
+
 ## Outputs
 
 - **Logs**: `~/VerifiedTrust-MacOS/MizanLogs/scan_<id>.log` and `errors_<id>.log`
