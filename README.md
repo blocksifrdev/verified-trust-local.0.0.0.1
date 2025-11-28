@@ -6,6 +6,7 @@ VerifiedTrust is a lightweight, high-fidelity macOS identity and endpoint hygien
 
 - UID-based scanning for daemon and user accounts
 - Comprehensive effort profile (age decay, activity, privilege risk, sudo usage, linked apps, password age, failed logins)
+- Service account effort decay surfaced separately (daemon UID ranges and underscore users)
 - Framework mapping (NIST, ISO, PCI, HIPAA, SOX, GDPR, COBIT, CIS, Zero Trust) with compliant/review/non-compliant evidence
 - MDM modes for Jamf (`<result>…</result>`) and Intune (single-line summary)
 - Proof-of-scan hashes (SHA3-256/STARK-style) per account
@@ -60,6 +61,7 @@ Plugins are sourced for each account and can emit structured strings that are ap
 - **CSV**: `~/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.csv`
 - **JSON**: `~/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.json`
 - **HTML**: `~/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.html` (PDF if `pandoc` is installed and `pdf` export requested)
+- Exports now include a `ServiceDecayNote` column/field to highlight dormant or inactive service principals
 
 ## Notes
 

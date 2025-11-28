@@ -126,8 +126,8 @@ map_to_frameworks() {
 
 # --------------------- MIZAN PROOF ---------------------
 mizan_proof() {
-    local upn="$1" display="$2" effort="$3" risk="$4" apps="$5" frameworks="$6" status="$7" policy_violations="$8" effort_profile="$9"
-    local proof_string="${upn}${effort}${apps}${frameworks}${status}${policy_violations}${effort_profile}VerifiedTrust-macOS-2025"
+    local upn="$1" display="$2" effort="$3" risk="$4" apps="$5" frameworks="$6" status="$7" policy_violations="$8" effort_profile="$9" service_note="${10:-}" 
+    local proof_string="${upn}${effort}${apps}${frameworks}${status}${policy_violations}${effort_profile}${service_note}VerifiedTrust-macOS-2025"
     local stark_proof=$(echo -n "$proof_string" | openssl dgst -sha3-256 2>/dev/null | awk '{print "0x"$2}' || echo -n "$proof_string" | shasum -a 256 | cut -d' ' -f1 | sed 's/^/0x/')
 
     cat <<EOFJSON > "$MIZAN_DIR/$(echo "$upn" | tr '@./ ' '_')_$(date +%Y%m%d_%H%M%S).json"
@@ -144,6 +144,7 @@ mizan_proof() {
   "account_status": "$status",
   "policy_violations": "$policy_violations",
   "platform": "macOS",
+  "service_decay_note": "${service_note:-N/A}",
   "stark_proof": "$stark_proof",
   "version": "enhanced-2025"
 }
@@ -286,11 +287,37 @@ get_linked_apps() {
 }
 
 # --------------------- EFFORT PROFILE ---------------------
+# Service accounts (daemons, underscore-prefixed users, UID < 500) get a dedicated
+# decay component so idle or non-running services surface clearly in the effort
+# profile without hiding genuinely active daemons.
+get_service_decay() {
+    local username="$1" account_type="$2"
+    local penalty=0
+    local note="Not a service account"
+
+    if [[ "$account_type" == "Daemon" || "$username" == _* ]]; then
+        note="Service account baseline"
+        local running=$(pgrep -u "$username" 2>/dev/null | wc -l | xargs || echo 0)
+        if (( running == 0 )); then
+            penalty=25
+            note="No running processes for service account"
+        elif (( running < 3 )); then
+            penalty=10
+            note="Low runtime activity for service account"
+        else
+            penalty=0
+            note="Service account actively running"
+        fi
+    fi
+
+    echo "$penalty|$note"
+}
+
 calculate_effort_score() {
-    local username="$1"
+    local username="$1" account_type="$2"
     local now=$(date +%s)
     local created_sec=0 last_login_sec=0 last_pw_change_sec=0 failed_logins=0
-    local age_decay=0 activity_decay=0 privilege_risk=0 login_freq_bonus=0 mfa_bonus=0 pw_age_decay=0 linked_apps_bonus=0 home_activity_bonus=0 sudo_bonus=0 failed_login_penalty=0
+    local age_decay=0 activity_decay=0 privilege_risk=0 login_freq_bonus=0 mfa_bonus=0 pw_age_decay=0 linked_apps_bonus=0 home_activity_bonus=0 sudo_bonus=0 failed_login_penalty=0 service_decay=0 service_note=""
 
     local policy=$(dscl . -read "/Users/$username" AccountPolicyData 2>/dev/null || echo "")
     if [[ -n "$policy" ]]; then
@@ -347,13 +374,15 @@ calculate_effort_score() {
     failed_login_penalty=$(( failed_logins * 2 ))
     (( failed_login_penalty > 20 )) && failed_login_penalty=20
 
-    local effort=$(( 100 - age_decay - activity_decay - privilege_risk - pw_age_decay - failed_login_penalty + login_freq_bonus + mfa_bonus + linked_apps_bonus + home_activity_bonus + sudo_bonus ))
+    IFS='|' read -r service_decay service_note <<< "$(get_service_decay "$username" "$account_type")"
+
+    local effort=$(( 100 - age_decay - activity_decay - privilege_risk - pw_age_decay - failed_login_penalty - service_decay + login_freq_bonus + mfa_bonus + linked_apps_bonus + home_activity_bonus + sudo_bonus ))
     (( effort < 0 )) && effort=0
     (( effort > 100 )) && effort=100
 
-    local profile="AgeDecay:$age_decay; ActivityDecay:$activity_decay; PrivilegeRisk:$privilege_risk; LoginFreqBonus:$login_freq_bonus; MFABonus:$mfa_bonus; PwAgeDecay:$pw_age_decay; LinkedAppsBonus:$linked_apps_bonus; HomeActivityBonus:$home_activity_bonus; SudoBonus:$sudo_bonus; FailedLoginPenalty:$failed_login_penalty"
+    local profile="AgeDecay:$age_decay; ActivityDecay:$activity_decay; PrivilegeRisk:$privilege_risk; LoginFreqBonus:$login_freq_bonus; MFABonus:$mfa_bonus; PwAgeDecay:$pw_age_decay; LinkedAppsBonus:$linked_apps_bonus; HomeActivityBonus:$home_activity_bonus; SudoBonus:$sudo_bonus; FailedLoginPenalty:$failed_login_penalty; ServiceDecay:$service_decay ($service_note)"
 
-    echo "$effort|$profile"
+    echo "$effort|$profile|$service_note"
 }
 
 # --------------------- ACCOUNT STATUS ---------------------
@@ -400,7 +429,7 @@ run_plugins() {
 # --------------------- MAIN SCAN ---------------------
 results=()
 json_results=()
-html_table="<table><tr><th>UPN</th><th>Name</th><th>Effort</th><th>Effort Profile</th><th>Risk</th><th>Linked Apps</th><th>Frameworks</th><th>Status</th><th>Policy Violations</th><th>Proof</th><th>Type</th></tr>"
+html_table="<table><tr><th>UPN</th><th>Name</th><th>Effort</th><th>Effort Profile</th><th>Risk</th><th>Linked Apps</th><th>Frameworks</th><th>Status</th><th>Policy Violations</th><th>Service Decay</th><th>Proof</th><th>Type</th></tr>"
 high_risk_count=0
 total_effort=0
 account_count=0
@@ -431,8 +460,8 @@ process_account() {
 
     realname=$(dscl . -read "/Users/$user" RealName 2>/dev/null | sed -n '2p' | xargs || echo "macOS $type Account")
     linked_apps=$(get_linked_apps "$user")
-    effort_profile=$(calculate_effort_score "$user")
-    IFS='|' read -r effort profile <<< "$effort_profile"
+    effort_profile=$(calculate_effort_score "$user" "$type")
+    IFS='|' read -r effort profile service_note <<< "$effort_profile"
     risk="Compliant"; (( effort < 20 )) && risk="Ghost"; (( effort < 50 )) && risk="High-Risk"; (( effort < 80 )) && risk="Dormant"
     frameworks=$(map_to_frameworks $effort)
     status=$(get_account_status "$user")
@@ -443,12 +472,12 @@ process_account() {
     run_plugins "$user"
     local plugin_blob=$(printf "%s" "${plugin_results[*]}" | tr '\n' '; ')
 
-    proof=$(mizan_proof "$user@local.macOS" "$user — $realname" $effort "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile")
-    local r="$user@local.macOS|$user — $realname|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|${proof:0:12}...|$type"
+    proof=$(mizan_proof "$user@local.macOS" "$user — $realname" $effort "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile" "$service_note")
+    local r="$user@local.macOS|$user — $realname|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|$type"
     results+=("$r")
 
-    json_results+=("{\n        \"upn\": \"$user@local.macOS\",\n        \"name\": \"$user — $realname\",\n        \"effort\": $effort,\n        \"effort_profile\": \"$profile\",\n        \"risk\": \"$risk\",\n        \"linked_apps\": \"$linked_apps\",\n        \"frameworks\": \"$frameworks\",\n        \"status\": \"$status\",\n        \"policy_violations\": \"$policy_violations\",\n        \"plugins\": \"$plugin_blob\",\n        \"proof\": \"${proof:0:12}...\",\n        \"type\": \"$type\"\n    }")
-    html_table+="<tr><td>$user@local.macOS</td><td>$user — $realname</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>${proof:0:12}...</td><td>$type</td></tr>"
+    json_results+=("{\n        \"upn\": \"$user@local.macOS\",\n        \"name\": \"$user — $realname\",\n        \"effort\": $effort,\n        \"effort_profile\": \"$profile\",\n        \"risk\": \"$risk\",\n        \"linked_apps\": \"$linked_apps\",\n        \"frameworks\": \"$frameworks\",\n        \"status\": \"$status\",\n        \"policy_violations\": \"$policy_violations\",\n        \"service_decay_note\": \"$service_note\",\n        \"plugins\": \"$plugin_blob\",\n        \"proof\": \"${proof:0:12}...\",\n        \"type\": \"$type\"\n    }")
+    html_table+="<tr><td>$user@local.macOS</td><td>$user — $realname</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>$type</td></tr>"
 
     ((account_count++))
     ((total_effort += effort))
@@ -462,17 +491,18 @@ scan_accounts '$2 >= 500 {print $1}' "User"
 
 if [[ -f /var/db/ConfigurationProfiles/Settings/.profilesAreInstalled ]] || [[ -d "/Library/Application Support/JAMF" ]]; then
     effort=8
-    profile="AgeDecay:50; ActivityDecay:30; PrivilegeRisk:0; LoginFreqBonus:0; MFABonus:0; PwAgeDecay:20; LinkedAppsBonus:0; HomeActivityBonus:0; SudoBonus:0; FailedLoginPenalty:0"
+    profile="AgeDecay:50; ActivityDecay:30; PrivilegeRisk:0; LoginFreqBonus:0; MFABonus:0; PwAgeDecay:20; LinkedAppsBonus:0; HomeActivityBonus:0; SudoBonus:0; FailedLoginPenalty:0; ServiceDecay:25 (MDM agent placeholder)"
     risk="Ghost"
     linked_apps="MDM Agent"
     frameworks=$(map_to_frameworks $effort)
     status="Enabled/Unlocked"
     policy_violations="None"
-    proof=$(mizan_proof "mdm-agent@local" "MDM Agent" $effort "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile")
-    mdm_row="mdm-agent@local|MDM Agent|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|${proof:0:12}...|MDM"
+    service_note="MDM agent flagged as service account"
+    proof=$(mizan_proof "mdm-agent@local" "MDM Agent" $effort "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile" "$service_note")
+    mdm_row="mdm-agent@local|MDM Agent|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|MDM"
     results+=("$mdm_row")
-    json_results+=("{\n        \"upn\": \"mdm-agent@local\",\n        \"name\": \"MDM Agent\",\n        \"effort\": $effort,\n        \"effort_profile\": \"$profile\",\n        \"risk\": \"$risk\",\n        \"linked_apps\": \"$linked_apps\",\n        \"frameworks\": \"$frameworks\",\n        \"status\": \"$status\",\n        \"policy_violations\": \"$policy_violations\",\n        \"proof\": \"${proof:0:12}...\",\n        \"type\": \"MDM\"\n    }")
-    html_table+="<tr><td>mdm-agent@local</td><td>MDM Agent</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>${proof:0:12}...</td><td>MDM</td></tr>"
+    json_results+=("{\n        \"upn\": \"mdm-agent@local\",\n        \"name\": \"MDM Agent\",\n        \"effort\": $effort,\n        \"effort_profile\": \"$profile\",\n        \"risk\": \"$risk\",\n        \"linked_apps\": \"$linked_apps\",\n        \"frameworks\": \"$frameworks\",\n        \"status\": \"$status\",\n        \"policy_violations\": \"$policy_violations\",\n        \"service_decay_note\": \"$service_note\",\n        \"proof\": \"${proof:0:12}...\",\n        \"type\": \"MDM\"\n    }")
+    html_table+="<tr><td>mdm-agent@local</td><td>MDM Agent</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>MDM</td></tr>"
 
     ((account_count++))
     ((total_effort += effort))
@@ -500,19 +530,19 @@ fi
 if (( account_count > 0 )); then
     echo -e "\n\e[95m================ ACCOUNTS SCANNED — RESULTS ================\e[0m\n" >&3
 
-    printf "%-44s %-32s %8s %-120s %-12s %-50s %-100s %-20s %-30s %14s %s\n" "UPN" "Name" "Effort" "Effort Profile" "Risk" "Linked Apps" "Frameworks" "Status" "Policy Violations" "Mizan Proof" "Type" >&3
-    printf "%s\n" "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------" >&3
+    printf "%-44s %-32s %8s %-120s %-12s %-50s %-100s %-20s %-30s %-32s %14s %s\n" "UPN" "Name" "Effort" "Effort Profile" "Risk" "Linked Apps" "Frameworks" "Status" "Policy Violations" "Service Decay" "Mizan Proof" "Type" >&3
+    printf "%s\n" "----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------" >&3
 
     for r in "${results[@]}"; do
-        IFS='|' read -r upn name effort profile risk apps frameworks status policy proof type <<< "$r"
+        IFS='|' read -r upn name effort profile risk apps frameworks status policy service_note proof type <<< "$r"
         color=32; (( effort < 20 )) && color=31; (( effort >= 20 && effort < 50 )) && color=33; (( effort >= 80 )) && color=92
-        printf "\e[${color}m%-44s\e[0m %-32s %8s %-120s %-12s %-50s %-100s %-20s %-30s \e[90m%s\e[0m %s\n" "$upn" "$name" "$effort" "$profile" "$risk" "$apps" "$frameworks" "$status" "$policy" "$proof" "$type" >&3
+        printf "\e[${color}m%-44s\e[0m %-32s %8s %-120s %-12s %-50s %-100s %-20s %-30s %-32s \e[90m%s\e[0m %s\n" "$upn" "$name" "$effort" "$profile" "$risk" "$apps" "$frameworks" "$status" "$policy" "$service_note" "$proof" "$type" >&3
     done
 fi
 
 if [[ "$EXPORT_FORMATS" == *"csv"* ]]; then
     {
-        echo "UPN,Name,EffortScore,EffortProfile,RiskLevel,LinkedApplications,FrameworkMappings,AccountStatus,PolicyViolations,MizanProof,Type"
+        echo "UPN,Name,EffortScore,EffortProfile,RiskLevel,LinkedApplications,FrameworkMappings,AccountStatus,PolicyViolations,ServiceDecayNote,MizanProof,Type"
         for r in "${results[@]}"; do echo "$r" | tr '|' ','; done
     } > "$CSV_OUT"
 fi
