@@ -50,6 +50,7 @@ if ! [[ "$UID_MIN" =~ ^[0-9]+$ && "$UID_MAX" =~ ^[0-9]+$ ]] || (( UID_MIN > UID_
     exit 1
 fi
 
+<<<<<<< HEAD
 if [[ ! "$TARGET_OS" =~ ^(auto|macos|linux|windows)$ ]]; then
     echo "Invalid OS target: $TARGET_OS (expected auto|macos|linux|windows)" >&2
     exit 1
@@ -60,6 +61,8 @@ if [[ ! "$CLOUD_MODE" =~ ^(none|aws|azure|gcp|all)$ ]]; then
     exit 1
 fi
 
+=======
+>>>>>>> main
 if (( SHOW_HELP )); then
     cat <<'USAGE'
 Usage: verifiedtrust [-u min,max] [-f full|minimal] [-v] [-e csv,json,html,pdf] [-m none|jamf|intune] [-o auto|macos|linux|windows] [-c none|aws|azure|gcp|all]
@@ -531,6 +534,7 @@ account_count=0
 scan_accounts() {
     local uid_filter="$1" type="$2"
     local tmpfile=$(mktemp)
+<<<<<<< HEAD
     if [[ "$PLATFORM" == "macos" ]]; then
         dscl . -list /Users UniqueID 2>/dev/null | awk -v min="$UID_MIN" -v max="$UID_MAX" "$uid_filter" > "$tmpfile" || { echo "Error listing users" >&2; return 1; }
     elif [[ "$PLATFORM" == "linux" ]]; then
@@ -542,6 +546,9 @@ scan_accounts() {
             echo "[warn] windows target requested but powershell is not available; skipping local account enumeration" >&2
         fi
     fi
+=======
+    dscl . -list /Users UniqueID 2>/dev/null | awk -v min="$UID_MIN" -v max="$UID_MAX" "$uid_filter" > "$tmpfile" || { echo "Error listing users" >&2; return 1; }
+>>>>>>> main
 
     if [[ ! -s "$tmpfile" ]]; then
         echo -e "\e[31mNo $type accounts found\e[0m" >&3
@@ -579,8 +586,13 @@ process_account() {
     local r="$user@local.$PLATFORM|$user — $realname|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|$type"
     results+=("$r")
 
+<<<<<<< HEAD
     json_results+=("{\"upn\":\"$(json_escape "$user@local.$PLATFORM")\",\"name\":\"$(json_escape "$user — $realname")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"plugins\":\"$(json_escape "$plugin_blob")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$type")\"}")
     html_table+="<tr><td>$user@local.$PLATFORM</td><td>$user — $realname</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>$type</td></tr>"
+=======
+    json_results+=("{\"upn\":\"$(json_escape "$user@local.macOS")\",\"name\":\"$(json_escape "$user — $realname")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"plugins\":\"$(json_escape "$plugin_blob")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$type")\"}")
+    html_table+="<tr><td>$user@local.macOS</td><td>$user — $realname</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>$type</td></tr>"
+>>>>>>> main
 
     ((account_count+=1))
     ((total_effort += effort))
@@ -747,7 +759,11 @@ if [[ "$EXPORT_FORMATS" == *"json"* ]]; then
             else
                 echo "    $obj"
             fi
+<<<<<<< HEAD
             ((idx+=1))
+=======
+            ((idx++))
+>>>>>>> main
         done
         echo "  ]"
         echo "}"
