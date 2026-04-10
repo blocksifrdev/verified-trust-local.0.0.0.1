@@ -1,7 +1,7 @@
 #!/bin/zsh
 # =====================================================================
-# VERIFIEDTRUST macOS — LOCAL & USER ACCOUNT SCANNING — NOV 27 2025
-# Lightweight identity and endpoint scanner with exportable evidence.
+# VERIFIEDTRUST MULTI-OS — LOCAL, USER & CLOUD IDENTITY SCANNING — NOV 27 2025
+# Lightweight identity and endpoint/cloud identity scanner with exportable evidence.
 # =====================================================================
 set -euo pipefail
 
@@ -28,14 +28,18 @@ FRAMEWORKS_MODE="full"
 VERBOSE=0
 EXPORT_FORMATS="csv,json,html"
 MDM_MODE="none"
+TARGET_OS="auto"
+CLOUD_MODE="none"
 SHOW_HELP=0
-while getopts ":u:f:v:e:m:h" opt; do
+while getopts ":u:f:v:e:m:o:c:h" opt; do
     case $opt in
         u) UID_MIN=$(echo $OPTARG | cut -d',' -f1); UID_MAX=$(echo $OPTARG | cut -d',' -f2) ;;
         f) FRAMEWORKS_MODE=$OPTARG ;;
         v) VERBOSE=1 ;;
         e) EXPORT_FORMATS=$OPTARG ;;
         m) MDM_MODE=$OPTARG ;;
+        o) TARGET_OS=$OPTARG ;;
+        c) CLOUD_MODE=$OPTARG ;;
         h) SHOW_HELP=1 ;;
         *) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
     esac
@@ -46,9 +50,22 @@ if ! [[ "$UID_MIN" =~ ^[0-9]+$ && "$UID_MAX" =~ ^[0-9]+$ ]] || (( UID_MIN > UID_
     exit 1
 fi
 
+<<<<<<< HEAD
+if [[ ! "$TARGET_OS" =~ ^(auto|macos|linux|windows)$ ]]; then
+    echo "Invalid OS target: $TARGET_OS (expected auto|macos|linux|windows)" >&2
+    exit 1
+fi
+
+if [[ ! "$CLOUD_MODE" =~ ^(none|aws|azure|gcp|all)$ ]]; then
+    echo "Invalid cloud mode: $CLOUD_MODE (expected none|aws|azure|gcp|all)" >&2
+    exit 1
+fi
+
+=======
+>>>>>>> main
 if (( SHOW_HELP )); then
     cat <<'USAGE'
-Usage: verifiedtrust [-u min,max] [-f full|minimal] [-v] [-e csv,json,html,pdf] [-m none|jamf|intune]
+Usage: verifiedtrust [-u min,max] [-f full|minimal] [-v] [-e csv,json,html,pdf] [-m none|jamf|intune] [-o auto|macos|linux|windows] [-c none|aws|azure|gcp|all]
 
 Options:
   -u    UID range to scan (default 0,500)
@@ -56,6 +73,8 @@ Options:
   -v    Verbose logging to console
   -e    Export formats (comma-separated)
   -m    MDM output mode (none|jamf|intune)
+  -o    Target OS scanner (auto|macos|linux|windows)
+  -c    Cloud identity mode (none|aws|azure|gcp|all)
   -h    Show help
 
 Environment:
@@ -66,15 +85,34 @@ USAGE
     exit 0
 fi
 
-SCAN_ID=$(uuidgen)
+SCAN_ID=$(uuidgen 2>/dev/null || echo "scan-$(date +%s)-$RANDOM")
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-MIZAN_DIR="$HOME/VerifiedTrust-MacOS/MizanLogs"
+detect_platform() {
+    case "$(uname -s 2>/dev/null || echo unknown)" in
+        Darwin) echo "macos" ;;
+        Linux)
+            if grep -qi microsoft /proc/version 2>/dev/null; then
+                echo "windows"
+            else
+                echo "linux"
+            fi
+            ;;
+        CYGWIN*|MINGW*|MSYS*) echo "windows" ;;
+        *) echo "linux" ;;
+    esac
+}
+
+PLATFORM="${TARGET_OS}"
+[[ "$PLATFORM" == "auto" ]] && PLATFORM="$(detect_platform)"
+PLATFORM_LABEL="$(echo "$PLATFORM" | tr '[:lower:]' '[:upper:]')"
+
+MIZAN_DIR="$HOME/VerifiedTrust-${PLATFORM_LABEL}/MizanLogs"
 LOG_FILE="$MIZAN_DIR/scan_$SCAN_ID.log"
 ERROR_FILE="$MIZAN_DIR/errors_$SCAN_ID.log"
-CSV_OUT="$HOME/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.csv"
-JSON_OUT="$HOME/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.json"
-HTML_OUT="$HOME/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.html"
-mkdir -p "$MIZAN_DIR" "$HOME/VerifiedTrust-MacOS"
+CSV_OUT="$HOME/VerifiedTrust-${PLATFORM_LABEL}/VerifiedTrust_${PLATFORM_LABEL}_ACCOUNTS_2025.csv"
+JSON_OUT="$HOME/VerifiedTrust-${PLATFORM_LABEL}/VerifiedTrust_${PLATFORM_LABEL}_ACCOUNTS_2025.json"
+HTML_OUT="$HOME/VerifiedTrust-${PLATFORM_LABEL}/VerifiedTrust_${PLATFORM_LABEL}_ACCOUNTS_2025.html"
+mkdir -p "$MIZAN_DIR" "$HOME/VerifiedTrust-${PLATFORM_LABEL}"
 
 exec 3>&1
 if (( VERBOSE )); then
@@ -83,10 +121,10 @@ else
     exec >> "$LOG_FILE" 2>> "$ERROR_FILE"
 fi
 
-if [[ "$MDM_MODE" != "none" ]]; then
-    echo -e "\n\e[95m=== VERIFIEDTRUST macOS — MDM MODE: $MDM_MODE ===\e[0m" >&3
+if [[ "$MDM_MODE" != "none" && "$PLATFORM" == "macos" ]]; then
+    echo -e "\n\e[95m=== VERIFIEDTRUST ${PLATFORM_LABEL} — MDM MODE: $MDM_MODE ===\e[0m" >&3
 else
-    echo -e "\n\e[95m=== VERIFIEDTRUST macOS — LOCAL & USER ACCOUNT SCANNING ===\e[0m" >&3
+    echo -e "\n\e[95m=== VERIFIEDTRUST ${PLATFORM_LABEL} — LOCAL, USER & CLOUD IDENTITY SCANNING ===\e[0m" >&3
 fi
 echo "Scan ID: $SCAN_ID\n" >&3
 
@@ -148,7 +186,7 @@ csv_escape() {
 # --------------------- MIZAN PROOF ---------------------
 mizan_proof() {
     local upn="$1" display="$2" effort="$3" risk="$4" apps="$5" frameworks="$6" status="$7" policy_violations="$8" effort_profile="$9" service_note="${10:-}" 
-    local proof_string="${upn}${effort}${apps}${frameworks}${status}${policy_violations}${effort_profile}${service_note}VerifiedTrust-macOS-2025"
+    local proof_string="${upn}${effort}${apps}${frameworks}${status}${policy_violations}${effort_profile}${service_note}VerifiedTrust-${PLATFORM_LABEL}-2025"
     local stark_proof=$(echo -n "$proof_string" | openssl dgst -sha3-256 2>/dev/null | awk '{print "0x"$2}' || echo -n "$proof_string" | shasum -a 256 | cut -d' ' -f1 | sed 's/^/0x/')
 
     cat <<EOFJSON > "$MIZAN_DIR/$(echo "$upn" | tr '@./ ' '_')_$(date +%Y%m%d_%H%M%S).json"
@@ -164,10 +202,10 @@ mizan_proof() {
   "framework_mappings": "$frameworks",
   "account_status": "$status",
   "policy_violations": "$policy_violations",
-  "platform": "macOS",
+  "platform": "$PLATFORM_LABEL",
   "service_decay_note": "${service_note:-N/A}",
   "stark_proof": "$stark_proof",
-  "version": "enhanced-2025"
+  "version": "enhanced-2025-multios-cloud"
 }
 EOFJSON
     echo "$stark_proof"
@@ -261,6 +299,15 @@ resolve_real_app_name() {
 # --------------------- LINKED APP DISCOVERY ---------------------
 get_linked_apps() {
     local username="$1"
+    if [[ "$PLATFORM" == "linux" ]]; then
+        local apps
+        apps=$(ps -u "$username" -o comm= 2>/dev/null | head -n 8 | paste -sd'; ' -)
+        echo "${apps:-None Detected}"
+        return 0
+    elif [[ "$PLATFORM" == "windows" ]]; then
+        echo "Windows linked apps require PowerShell endpoint telemetry"
+        return 0
+    fi
     local apps=""
     local found=0
 
@@ -336,6 +383,19 @@ get_service_decay() {
 
 calculate_effort_score() {
     local username="$1" account_type="$2"
+    if [[ "$PLATFORM" == "linux" ]]; then
+        local effort=75
+        local profile="AgeDecay:10; ActivityDecay:10; PrivilegeRisk:0; LoginFreqBonus:5; MFABonus:0; PwAgeDecay:5; LinkedAppsBonus:5; HomeActivityBonus:0; SudoBonus:0; FailedLoginPenalty:0; ServiceDecay:0 (Linux baseline)"
+        local groups=$(id -Gn "$username" 2>/dev/null || true)
+        [[ "$groups" == *"sudo"* || "$groups" == *"wheel"* ]] && effort=$(( effort - 15 )) && profile="${profile}; PrivilegedGroup:yes"
+        echo "$effort|$profile|Linux baseline"
+        return 0
+    elif [[ "$PLATFORM" == "windows" ]]; then
+        local effort=70
+        local profile="AgeDecay:10; ActivityDecay:15; PrivilegeRisk:10; LoginFreqBonus:0; MFABonus:0; PwAgeDecay:10; LinkedAppsBonus:0; HomeActivityBonus:0; SudoBonus:0; FailedLoginPenalty:0; ServiceDecay:0 (Windows baseline)"
+        echo "$effort|$profile|Windows baseline"
+        return 0
+    fi
     local now=$(date +%s)
     local created_sec=0 last_login_sec=0 last_pw_change_sec=0 failed_logins=0
     local age_decay=0 activity_decay=0 privilege_risk=0 login_freq_bonus=0 mfa_bonus=0 pw_age_decay=0 linked_apps_bonus=0 home_activity_bonus=0 sudo_bonus=0 failed_login_penalty=0 service_decay=0 service_note=""
@@ -409,6 +469,13 @@ calculate_effort_score() {
 # --------------------- ACCOUNT STATUS ---------------------
 get_account_status() {
     local username="$1"
+    if [[ "$PLATFORM" == "linux" ]]; then
+        passwd -S "$username" 2>/dev/null | awk '{print ($2=="L" ? "Disabled/Locked" : "Enabled/Unlocked")}' || echo "Unknown"
+        return 0
+    elif [[ "$PLATFORM" == "windows" ]]; then
+        echo "Unknown"
+        return 0
+    fi
     local disabled="Enabled"
     local locked="Unlocked"
     if pwpolicy -u "$username" -getpolicy 2>/dev/null | grep -q 'isDisabled=1'; then
@@ -423,6 +490,15 @@ get_account_status() {
 # --------------------- PASSWORD POLICY ---------------------
 get_policy_violations() {
     local username="$1"
+    if [[ "$PLATFORM" == "linux" ]]; then
+        local violations=""
+        chage -l "$username" 2>/dev/null | grep -qi "never" && violations+="No expiration; "
+        echo "${violations:-None}"
+        return 0
+    elif [[ "$PLATFORM" == "windows" ]]; then
+        echo "None"
+        return 0
+    fi
     local violations=""
     local policy=$(pwpolicy -u "$username" -getpolicy 2>/dev/null || echo "")
     [[ "$policy" != *"policyAttributePassword"* ]] && violations+="No password policy; "
@@ -458,11 +534,25 @@ account_count=0
 scan_accounts() {
     local uid_filter="$1" type="$2"
     local tmpfile=$(mktemp)
+<<<<<<< HEAD
+    if [[ "$PLATFORM" == "macos" ]]; then
+        dscl . -list /Users UniqueID 2>/dev/null | awk -v min="$UID_MIN" -v max="$UID_MAX" "$uid_filter" > "$tmpfile" || { echo "Error listing users" >&2; return 1; }
+    elif [[ "$PLATFORM" == "linux" ]]; then
+        getent passwd | awk -F: -v min="$UID_MIN" -v max="$UID_MAX" '{print $1" "$3}' | awk -v min="$UID_MIN" -v max="$UID_MAX" "$uid_filter" > "$tmpfile" || { echo "Error listing linux users" >&2; return 1; }
+    else
+        if command -v powershell >/dev/null 2>&1; then
+            powershell -NoProfile -Command 'Get-LocalUser | ForEach-Object { "{0} {1}" -f $_.Name, ($_.SID.Value.Split("-")[-1]) }' 2>/dev/null | awk -v min="$UID_MIN" -v max="$UID_MAX" "$uid_filter" > "$tmpfile" || true
+        else
+            echo "[warn] windows target requested but powershell is not available; skipping local account enumeration" >&2
+        fi
+    fi
+=======
     dscl . -list /Users UniqueID 2>/dev/null | awk -v min="$UID_MIN" -v max="$UID_MAX" "$uid_filter" > "$tmpfile" || { echo "Error listing users" >&2; return 1; }
+>>>>>>> main
 
     if [[ ! -s "$tmpfile" ]]; then
         echo -e "\e[31mNo $type accounts found\e[0m" >&3
-        [[ "$type" == "Daemon" ]] && { echo "Forcing known daemons..."; for user in _assetcache _spotlight _tcc _windowserver _mdnsresponder; do echo "$user"; done >> "$tmpfile"; }
+        [[ "$type" == "Daemon" && "$PLATFORM" == "macos" ]] && { echo "Forcing known daemons..."; for user in _assetcache _spotlight _tcc _windowserver _mdnsresponder; do echo "$user"; done >> "$tmpfile"; }
     fi
 
     if command -v parallel >/dev/null 2>&1 && [[ -n "${PARALLEL:-}" ]]; then
@@ -492,16 +582,82 @@ process_account() {
     run_plugins "$user"
     local plugin_blob=$(printf "%s" "${plugin_results[*]}" | tr '\n' '; ')
 
-    proof=$(mizan_proof "$user@local.macOS" "$user — $realname" $effort "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile" "$service_note")
-    local r="$user@local.macOS|$user — $realname|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|$type"
+    proof=$(mizan_proof "$user@local.$PLATFORM" "$user — $realname" $effort "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile" "$service_note")
+    local r="$user@local.$PLATFORM|$user — $realname|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|$type"
     results+=("$r")
 
+<<<<<<< HEAD
+    json_results+=("{\"upn\":\"$(json_escape "$user@local.$PLATFORM")\",\"name\":\"$(json_escape "$user — $realname")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"plugins\":\"$(json_escape "$plugin_blob")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$type")\"}")
+    html_table+="<tr><td>$user@local.$PLATFORM</td><td>$user — $realname</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>$type</td></tr>"
+=======
     json_results+=("{\"upn\":\"$(json_escape "$user@local.macOS")\",\"name\":\"$(json_escape "$user — $realname")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"plugins\":\"$(json_escape "$plugin_blob")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$type")\"}")
     html_table+="<tr><td>$user@local.macOS</td><td>$user — $realname</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>$type</td></tr>"
+>>>>>>> main
 
-    ((account_count++))
+    ((account_count+=1))
     ((total_effort += effort))
-    [[ "$risk" == "High-Risk" || "$risk" == "Ghost" ]] && ((high_risk_count++))
+    [[ "$risk" == "High-Risk" || "$risk" == "Ghost" ]] && ((high_risk_count+=1))
+    return 0
+}
+
+append_cloud_identity() {
+    local upn="$1" provider="$2" identity_type="$3"
+    local effort=55
+    local profile="AgeDecay:0; ActivityDecay:15; PrivilegeRisk:10; LoginFreqBonus:0; MFABonus:0; PwAgeDecay:10; LinkedAppsBonus:0; HomeActivityBonus:0; SudoBonus:0; FailedLoginPenalty:0; ServiceDecay:10 (${provider} cloud baseline)"
+    local risk="Dormant"
+    local linked_apps="${provider} control plane"
+    local frameworks
+    frameworks=$(map_to_frameworks "$effort")
+    local status="Enabled/Unknown"
+    local policy_violations="Cloud policy check requires CSP API permissions"
+    local service_note="${provider} identity telemetry baseline"
+    local proof
+    proof=$(mizan_proof "$upn" "$upn" "$effort" "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile" "$service_note")
+    local r="$upn|$upn|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|$identity_type"
+    results+=("$r")
+    json_results+=("{\"upn\":\"$(json_escape "$upn")\",\"name\":\"$(json_escape "$upn")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$identity_type")\"}")
+    html_table+="<tr><td>$upn</td><td>$upn</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>$identity_type</td></tr>"
+    ((account_count+=1))
+    ((total_effort += effort))
+    return 0
+}
+
+scan_cloud_identities() {
+    local provider="$1"
+    local found=0
+    case "$provider" in
+        aws)
+            if command -v aws >/dev/null 2>&1; then
+                while read -r user; do
+                    [[ -z "$user" ]] && continue
+                    append_cloud_identity "${user}@aws" "AWS" "CloudUser"
+                    found=1
+                done < <(aws iam list-users --query 'Users[].UserName' --output text 2>/dev/null | tr '\t' '\n')
+            fi
+            ;;
+        azure)
+            if command -v az >/dev/null 2>&1; then
+                while read -r user; do
+                    [[ -z "$user" ]] && continue
+                    append_cloud_identity "$user" "Azure" "CloudUser"
+                    found=1
+                done < <(az ad user list --query '[].userPrincipalName' -o tsv 2>/dev/null)
+            fi
+            ;;
+        gcp)
+            if command -v gcloud >/dev/null 2>&1; then
+                while read -r sa; do
+                    [[ -z "$sa" ]] && continue
+                    append_cloud_identity "$sa" "GCP" "CloudServiceAccount"
+                    found=1
+                done < <(gcloud iam service-accounts list --format='value(email)' 2>/dev/null)
+            fi
+            ;;
+    esac
+
+    if (( found == 0 )); then
+        echo "[warn] $provider scan requested but no identities found (CLI missing, unauthenticated, or no permissions)." >&2
+    fi
 }
 
 echo "Scanning daemon accounts..." >&3
@@ -509,7 +665,20 @@ scan_accounts '$2 >= min && $2 <= max && $2 < 500 && $2 > 0 {print $1}' "Daemon"
 echo "Scanning user accounts..." >&3
 scan_accounts '$2 >= min && $2 <= max && $2 >= 500 {print $1}' "User"
 
-if [[ -f /var/db/ConfigurationProfiles/Settings/.profilesAreInstalled ]] || [[ -d "/Library/Application Support/JAMF" ]]; then
+if [[ "$CLOUD_MODE" == "aws" || "$CLOUD_MODE" == "all" ]]; then
+    echo "Scanning AWS identities..." >&3
+    scan_cloud_identities "aws"
+fi
+if [[ "$CLOUD_MODE" == "azure" || "$CLOUD_MODE" == "all" ]]; then
+    echo "Scanning Azure identities..." >&3
+    scan_cloud_identities "azure"
+fi
+if [[ "$CLOUD_MODE" == "gcp" || "$CLOUD_MODE" == "all" ]]; then
+    echo "Scanning GCP identities..." >&3
+    scan_cloud_identities "gcp"
+fi
+
+if [[ "$PLATFORM" == "macos" ]] && { [[ -f /var/db/ConfigurationProfiles/Settings/.profilesAreInstalled ]] || [[ -d "/Library/Application Support/JAMF" ]]; }; then
     effort=8
     profile="AgeDecay:50; ActivityDecay:30; PrivilegeRisk:0; LoginFreqBonus:0; MFABonus:0; PwAgeDecay:20; LinkedAppsBonus:0; HomeActivityBonus:0; SudoBonus:0; FailedLoginPenalty:0; ServiceDecay:25 (MDM agent placeholder)"
     risk="Ghost"
@@ -524,25 +693,31 @@ if [[ -f /var/db/ConfigurationProfiles/Settings/.profilesAreInstalled ]] || [[ -
     json_results+=("{\"upn\":\"mdm-agent@local\",\"name\":\"MDM Agent\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"MDM\"}")
     html_table+="<tr><td>mdm-agent@local</td><td>MDM Agent</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>MDM</td></tr>"
 
-    ((account_count++))
+    ((account_count+=1))
     ((total_effort += effort))
-    [[ "$risk" == "High-Risk" || "$risk" == "Ghost" ]] && ((high_risk_count++))
+    [[ "$risk" == "High-Risk" || "$risk" == "Ghost" ]] && ((high_risk_count+=1))
 fi
 
 average_effort=0
 (( account_count > 0 )) && average_effort=$(( total_effort / account_count ))
 
-if [[ "$MDM_MODE" == "jamf" ]]; then
+if [[ "$PLATFORM" == "macos" && "$MDM_MODE" == "jamf" ]]; then
     echo "<result>Scan ID: $SCAN_ID | Accounts: $account_count | Average Effort: $average_effort | High Risks: $high_risk_count</result>"
     exit 0
-elif [[ "$MDM_MODE" == "intune" ]]; then
+elif [[ "$PLATFORM" == "macos" && "$MDM_MODE" == "intune" ]]; then
     echo "Scan ID: $SCAN_ID | Accounts: $account_count | Average Effort: $average_effort | High Risks: $high_risk_count"
     exit 0
 fi
 
 if [[ "$MDM_MODE" == "none" ]]; then
     echo -e "\e[93m=== PROOF: LISTING ACCOUNTS (UID $UID_MIN to $UID_MAX) ===\e[0m" >&3
-    dscl . -list /Users UniqueID 2>/dev/null | awk -v min=$UID_MIN -v max=$UID_MAX '$2 >= min && $2 <= max {print "Found account: " $1 " (UID: " $2 ")"}'
+    if [[ "$PLATFORM" == "macos" ]]; then
+        dscl . -list /Users UniqueID 2>/dev/null | awk -v min=$UID_MIN -v max=$UID_MAX '$2 >= min && $2 <= max {print "Found account: " $1 " (UID: " $2 ")"}'
+    elif [[ "$PLATFORM" == "linux" ]]; then
+        getent passwd | awk -F: -v min=$UID_MIN -v max=$UID_MAX '$3 >= min && $3 <= max {print "Found account: " $1 " (UID: " $3 ")"}'
+    else
+        echo "Windows proof listing requires PowerShell local user access."
+    fi
     echo -e "\e[93m=== END PROOF ===\e[0m\n" >&3
 fi
 
@@ -584,7 +759,11 @@ if [[ "$EXPORT_FORMATS" == *"json"* ]]; then
             else
                 echo "    $obj"
             fi
+<<<<<<< HEAD
+            ((idx+=1))
+=======
             ((idx++))
+>>>>>>> main
         done
         echo "  ]"
         echo "}"
