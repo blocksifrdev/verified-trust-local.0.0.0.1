@@ -49,7 +49,7 @@ bin/verifiedtrust.sh -u 0,1000 -e html
 Environment variables:
 - `KNOWN_GOOD_HASH`: SHA256 for integrity enforcement (skips check when unset)
 - `PLUGIN_DIR`: Override plugin directory (default `./plugins`)
-- `PARALLEL`: When set and GNU `parallel` is present, enables concurrent account processing
+- `PARALLEL`: When set and GNU `parallel` is present, requests parallel mode (local build currently falls back to sequential mode for zsh function-scope safety)
 
 ## Plugin Architecture
 

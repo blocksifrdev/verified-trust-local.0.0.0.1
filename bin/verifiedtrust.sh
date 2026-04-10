@@ -41,6 +41,11 @@ while getopts ":u:f:v:e:m:h" opt; do
     esac
 done
 
+if ! [[ "$UID_MIN" =~ ^[0-9]+$ && "$UID_MAX" =~ ^[0-9]+$ ]] || (( UID_MIN > UID_MAX )); then
+    echo "Invalid UID range: $UID_MIN,$UID_MAX (expected min,max with min <= max)" >&2
+    exit 1
+fi
+
 if (( SHOW_HELP )); then
     cat <<'USAGE'
 Usage: verifiedtrust [-u min,max] [-f full|minimal] [-v] [-e csv,json,html,pdf] [-m none|jamf|intune]
@@ -56,7 +61,7 @@ Options:
 Environment:
   KNOWN_GOOD_HASH   Optional SHA256 hash to enforce self-integrity.
   PLUGIN_DIR        Directory containing plugin scripts (default: ./plugins).
-  PARALLEL          If set, forces parallel scanning when GNU parallel exists.
+  PARALLEL          Requests parallel scanning when GNU parallel exists (local build currently uses sequential mode).
 USAGE
     exit 0
 fi
@@ -122,6 +127,22 @@ map_to_frameworks() {
         mappings+="$fw:$status ($evidence); "
     done
     echo "${mappings%; }"
+}
+
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    echo "$s"
+}
+
+csv_escape() {
+    local s="$1"
+    s="${s//\"/\"\"}"
+    echo "\"$s\""
 }
 
 # --------------------- MIZAN PROOF ---------------------
@@ -437,20 +458,19 @@ account_count=0
 scan_accounts() {
     local uid_filter="$1" type="$2"
     local tmpfile=$(mktemp)
-    dscl . -list /Users UniqueID 2>/dev/null | awk "$uid_filter" > "$tmpfile" || { echo "Error listing users" >&2; return 1; }
+    dscl . -list /Users UniqueID 2>/dev/null | awk -v min="$UID_MIN" -v max="$UID_MAX" "$uid_filter" > "$tmpfile" || { echo "Error listing users" >&2; return 1; }
 
     if [[ ! -s "$tmpfile" ]]; then
         echo -e "\e[31mNo $type accounts found\e[0m" >&3
         [[ "$type" == "Daemon" ]] && { echo "Forcing known daemons..."; for user in _assetcache _spotlight _tcc _windowserver _mdnsresponder; do echo "$user"; done >> "$tmpfile"; }
     fi
 
-    if command -v parallel >/dev/null && { [[ -n "$PARALLEL" ]] || true; }; then
-        parallel -j4 --keep-order process_account {} "$type" ::: $(cat "$tmpfile")
-    else
-        while read -r user; do
-            process_account "$user" "$type"
-        done < "$tmpfile"
+    if command -v parallel >/dev/null 2>&1 && [[ -n "${PARALLEL:-}" ]]; then
+        echo "[warn] PARALLEL requested, but sequential mode is used for reliable function scope in zsh." >&2
     fi
+    while read -r user; do
+        process_account "$user" "$type"
+    done < "$tmpfile"
     rm -f "$tmpfile"
 }
 
@@ -476,7 +496,7 @@ process_account() {
     local r="$user@local.macOS|$user — $realname|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|$type"
     results+=("$r")
 
-    json_results+=("{\n        \"upn\": \"$user@local.macOS\",\n        \"name\": \"$user — $realname\",\n        \"effort\": $effort,\n        \"effort_profile\": \"$profile\",\n        \"risk\": \"$risk\",\n        \"linked_apps\": \"$linked_apps\",\n        \"frameworks\": \"$frameworks\",\n        \"status\": \"$status\",\n        \"policy_violations\": \"$policy_violations\",\n        \"service_decay_note\": \"$service_note\",\n        \"plugins\": \"$plugin_blob\",\n        \"proof\": \"${proof:0:12}...\",\n        \"type\": \"$type\"\n    }")
+    json_results+=("{\"upn\":\"$(json_escape "$user@local.macOS")\",\"name\":\"$(json_escape "$user — $realname")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"plugins\":\"$(json_escape "$plugin_blob")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$type")\"}")
     html_table+="<tr><td>$user@local.macOS</td><td>$user — $realname</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>$type</td></tr>"
 
     ((account_count++))
@@ -485,9 +505,9 @@ process_account() {
 }
 
 echo "Scanning daemon accounts..." >&3
-scan_accounts '$2 < 500 && $2 > 0 {print $1}' "Daemon"
+scan_accounts '$2 >= min && $2 <= max && $2 < 500 && $2 > 0 {print $1}' "Daemon"
 echo "Scanning user accounts..." >&3
-scan_accounts '$2 >= 500 {print $1}' "User"
+scan_accounts '$2 >= min && $2 <= max && $2 >= 500 {print $1}' "User"
 
 if [[ -f /var/db/ConfigurationProfiles/Settings/.profilesAreInstalled ]] || [[ -d "/Library/Application Support/JAMF" ]]; then
     effort=8
@@ -501,7 +521,7 @@ if [[ -f /var/db/ConfigurationProfiles/Settings/.profilesAreInstalled ]] || [[ -
     proof=$(mizan_proof "mdm-agent@local" "MDM Agent" $effort "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile" "$service_note")
     mdm_row="mdm-agent@local|MDM Agent|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|MDM"
     results+=("$mdm_row")
-    json_results+=("{\n        \"upn\": \"mdm-agent@local\",\n        \"name\": \"MDM Agent\",\n        \"effort\": $effort,\n        \"effort_profile\": \"$profile\",\n        \"risk\": \"$risk\",\n        \"linked_apps\": \"$linked_apps\",\n        \"frameworks\": \"$frameworks\",\n        \"status\": \"$status\",\n        \"policy_violations\": \"$policy_violations\",\n        \"service_decay_note\": \"$service_note\",\n        \"proof\": \"${proof:0:12}...\",\n        \"type\": \"MDM\"\n    }")
+    json_results+=("{\"upn\":\"mdm-agent@local\",\"name\":\"MDM Agent\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"MDM\"}")
     html_table+="<tr><td>mdm-agent@local</td><td>MDM Agent</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>MDM</td></tr>"
 
     ((account_count++))
@@ -543,17 +563,29 @@ fi
 if [[ "$EXPORT_FORMATS" == *"csv"* ]]; then
     {
         echo "UPN,Name,EffortScore,EffortProfile,RiskLevel,LinkedApplications,FrameworkMappings,AccountStatus,PolicyViolations,ServiceDecayNote,MizanProof,Type"
-        for r in "${results[@]}"; do echo "$r" | tr '|' ','; done
+        for r in "${results[@]}"; do
+            IFS='|' read -r upn name effort profile risk apps frameworks status policy service_note proof type <<< "$r"
+            echo "$(csv_escape "$upn"),$(csv_escape "$name"),$(csv_escape "$effort"),$(csv_escape "$profile"),$(csv_escape "$risk"),$(csv_escape "$apps"),$(csv_escape "$frameworks"),$(csv_escape "$status"),$(csv_escape "$policy"),$(csv_escape "$service_note"),$(csv_escape "$proof"),$(csv_escape "$type")"
+        done
     } > "$CSV_OUT"
 fi
 
 if [[ "$EXPORT_FORMATS" == *"json"* ]]; then
     {
         echo "{"
-        echo "  \"scan_id\": \"$SCAN_ID\"," 
-        echo "  \"timestamp\": \"$TIMESTAMP\"," 
+        echo "  \"scan_id\": \"$(json_escape "$SCAN_ID")\"," 
+        echo "  \"timestamp\": \"$(json_escape "$TIMESTAMP")\"," 
         echo "  \"accounts\": ["
-        echo "${json_results[*]}" | sed 's/} {/},\n    {/g'
+        idx=1
+        total=${#json_results[@]}
+        for obj in "${json_results[@]}"; do
+            if (( idx < total )); then
+                echo "    $obj,"
+            else
+                echo "    $obj"
+            fi
+            ((idx++))
+        done
         echo "  ]"
         echo "}"
     } > "$JSON_OUT"
