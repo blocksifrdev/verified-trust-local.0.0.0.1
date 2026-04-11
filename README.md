@@ -1,14 +1,15 @@
-# VerifiedTrust macOS Scanner (local build)
+# VerifiedTrust Multi-OS Scanner (local build)
 
-VerifiedTrust is a lightweight, high-fidelity macOS identity and endpoint hygiene scanner aligned with financial/compliance frameworks. This local build packages the primary scanner, a plugin framework, and export options for CSV/JSON/HTML (optional PDF).
+VerifiedTrust is a lightweight identity hygiene scanner aligned with financial/compliance frameworks. This local build now supports multi-OS local account discovery (macOS/Linux/Windows target mode) and optional cloud identity discovery for AWS, Azure, and GCP.
 
 ## Features
 
-- UID-based scanning for daemon and user accounts
+- UID-based scanning for daemon and user accounts on macOS/Linux (Windows support via PowerShell target mode)
 - Comprehensive effort profile (age decay, activity, privilege risk, sudo usage, linked apps, password age, failed logins)
 - Service account effort decay surfaced separately (daemon UID ranges and underscore users)
 - Framework mapping (NIST, ISO, PCI, HIPAA, SOX, GDPR, COBIT, CIS, Zero Trust) with compliant/review/non-compliant evidence
 - MDM modes for Jamf (`<result>…</result>`) and Intune (single-line summary)
+- Cloud identity modes for AWS IAM, Azure AD users, and GCP service accounts
 - Proof-of-scan hashes (SHA3-256/STARK-style) per account
 - Export formats: CSV, JSON, HTML (PDF when `pandoc` is available)
 - Plugin architecture (inherits environment, per-account execution)
@@ -28,7 +29,7 @@ README.md
 ## Usage
 
 ```bash
-# Basic scan (daemon + user accounts)
+# Basic local scan (auto-detect host platform)
 bin/verifiedtrust.sh -v
 
 # Minimal framework mapping, limit exports, enable Jamf EA mode
@@ -36,6 +37,9 @@ bin/verifiedtrust.sh -f minimal -e csv,json -m jamf
 
 # Custom UID range and HTML export
 bin/verifiedtrust.sh -u 0,1000 -e html
+
+# Linux-targeted scan with all 3 cloud providers
+bin/verifiedtrust.sh -o linux -c all -e csv,json
 ```
 
 ### Options
@@ -44,12 +48,16 @@ bin/verifiedtrust.sh -u 0,1000 -e html
 - `-v`: Verbose logging to console (always logs to `~/VerifiedTrust-MacOS/MizanLogs`)
 - `-e <csv,json,html,pdf>`: Export formats (comma separated)
 - `-m <none|jamf|intune>`: MDM output modes
+- `-o <auto|macos|linux|windows>`: Target OS scanner mode
+- `-c <none|aws|azure|gcp|all>`: Cloud identity scanner mode
 - `-h`: Help/usage
 
 Environment variables:
 - `KNOWN_GOOD_HASH`: SHA256 for integrity enforcement (skips check when unset)
 - `PLUGIN_DIR`: Override plugin directory (default `./plugins`)
-- `PARALLEL`: When set and GNU `parallel` is present, enables concurrent account processing
+- `PLUGIN_TRUST_MODE`: `strict` (default) enforces plugin owner/permission checks, `permissive` bypasses checks
+- `PLUGIN_ALLOWLIST`: Optional comma-separated plugin basenames allowed to execute
+- `PARALLEL`: When set and GNU `parallel` is present, requests parallel mode (local build currently falls back to sequential mode for zsh function-scope safety)
 
 ## Plugin Architecture
 
@@ -63,14 +71,20 @@ Network-focused plugins included in this build:
 
 ## Outputs
 
-- **Logs**: `~/VerifiedTrust-MacOS/MizanLogs/scan_<id>.log` and `errors_<id>.log`
-- **CSV**: `~/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.csv`
-- **JSON**: `~/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.json`
-- **HTML**: `~/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.html` (PDF if `pandoc` is installed and `pdf` export requested)
+- **Logs**: `~/VerifiedTrust-<PLATFORM>/MizanLogs/scan_<id>.log` and `errors_<id>.log`
+- **CSV**: `~/VerifiedTrust-<PLATFORM>/VerifiedTrust_<PLATFORM>_ACCOUNTS_2025.csv`
+- **JSON**: `~/VerifiedTrust-<PLATFORM>/VerifiedTrust_<PLATFORM>_ACCOUNTS_2025.json`
+- **HTML**: `~/VerifiedTrust-<PLATFORM>/VerifiedTrust_<PLATFORM>_ACCOUNTS_2025.html` (PDF if `pandoc` is installed and `pdf` export requested)
 - Exports now include a `ServiceDecayNote` column/field to highlight dormant or inactive service principals
 
 ## Notes
 
-- The scanner relies on macOS utilities such as `dscl`, `pwpolicy`, `launchctl`, and `defaults`; running outside macOS will limit functionality.
+- macOS mode uses utilities such as `dscl`, `pwpolicy`, `launchctl`, and `defaults`; Linux mode uses `getent/chage/passwd`; Windows mode expects `powershell`.
+- Cloud modes require authenticated CLIs (`aws`, `az`, `gcloud`) with IAM/read permissions.
 - The integrity check is optional until you set `KNOWN_GOOD_HASH` to the script's SHA256.
-- MDM-aware modes summarize results for Jamf/Intune while still writing evidence to log files.
+- MDM-aware modes summarize results for Jamf/Intune while still writing evidence to log files (macOS mode only).
+
+## Business Readiness
+
+- See `GO_TO_MARKET_AND_GO_LIVE_ASSESSMENT.md` for the latest GTM and go-live readiness assessment.
+- See `OPERATIONS_RUNBOOK.md` for packaging, update, rollback, and support workflows required for production launch.
