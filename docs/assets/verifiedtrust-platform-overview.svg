@@ -1,0 +1,56 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='680' viewBox='0 0 1200 680'>
+  <defs>
+    <linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0%' stop-color='#0f172a'/>
+      <stop offset='100%' stop-color='#1e293b'/>
+    </linearGradient>
+    <style>
+      .title{font:700 34px "Segoe UI",Arial,sans-serif; fill:#e2e8f0}
+      .sub{font:500 16px "Segoe UI",Arial,sans-serif; fill:#cbd5e1}
+      .h{font:700 18px "Segoe UI",Arial,sans-serif; fill:#0f172a}
+      .t{font:500 14px "Segoe UI",Arial,sans-serif; fill:#1e293b}
+      .chip{font:600 12px "Segoe UI",Arial,sans-serif; fill:#0f172a}
+    </style>
+  </defs>
+  <rect width='1200' height='680' fill='url(#bg)' rx='20'/>
+  <text x='50' y='62' class='title'>VerifiedTrust Platform Overview</text>
+  <text x='50' y='92' class='sub'>Multi-OS local identity + AWS/Azure/GCP cloud posture with exportable evidence</text>
+
+  <rect x='50' y='130' width='300' height='200' rx='16' fill='#bfdbfe'/>
+  <text x='75' y='165' class='h'>🖥️ Local Sources</text>
+  <text x='75' y='195' class='t'>• macOS users/daemons</text>
+  <text x='75' y='220' class='t'>• Linux passwd identities</text>
+  <text x='75' y='245' class='t'>• Windows local users</text>
+  <text x='75' y='270' class='t'>• Plugins (network/ssh/vpn)</text>
+
+  <rect x='450' y='130' width='300' height='200' rx='16' fill='#fde68a'/>
+  <text x='475' y='165' class='h'>☁️ Cloud Sources</text>
+  <text x='475' y='195' class='t'>• AWS IAM users + MFA/keys</text>
+  <text x='475' y='220' class='t'>• Azure users + auth methods</text>
+  <text x='475' y='245' class='t'>• GCP SAs + key/binding checks</text>
+
+  <rect x='850' y='130' width='300' height='200' rx='16' fill='#bbf7d0'/>
+  <text x='875' y='165' class='h'>🧠 Analysis Core</text>
+  <text x='875' y='195' class='t'>• Effort & risk scoring</text>
+  <text x='875' y='220' class='t'>• Framework mappings</text>
+  <text x='875' y='245' class='t'>• Mizan proof generation</text>
+  <text x='875' y='270' class='t'>• Trust-gated plugin loading</text>
+
+  <rect x='200' y='390' width='800' height='220' rx='16' fill='#e2e8f0'/>
+  <text x='235' y='430' class='h'>📦 Outputs & Operations</text>
+  <text x='235' y='460' class='t'>• CSV / JSON / HTML / PDF exports</text>
+  <text x='235' y='485' class='t'>• Logs + scan IDs for audit traceability</text>
+  <text x='235' y='510' class='t'>• Runbook: packaging, update, rollback, support SLA</text>
+  <text x='235' y='535' class='t'>• GTM guidance: design-partner beta → GA readiness gates</text>
+
+  <rect x='910' y='405' width='70' height='24' rx='12' fill='#93c5fd'/><text x='926' y='422' class='chip'>NIST</text>
+  <rect x='990' y='405' width='70' height='24' rx='12' fill='#fca5a5'/><text x='1011' y='422' class='chip'>ISO</text>
+  <rect x='1070' y='405' width='70' height='24' rx='12' fill='#86efac'/><text x='1086' y='422' class='chip'>PCI</text>
+
+  <line x1='350' y1='230' x2='450' y2='230' stroke='#e2e8f0' stroke-width='4'/>
+  <polygon points='450,230 438,223 438,237' fill='#e2e8f0'/>
+  <line x1='750' y1='230' x2='850' y2='230' stroke='#e2e8f0' stroke-width='4'/>
+  <polygon points='850,230 838,223 838,237' fill='#e2e8f0'/>
+  <line x1='1000' y1='330' x2='800' y2='390' stroke='#e2e8f0' stroke-width='4'/>
+  <polygon points='800,390 809,380 813,393' fill='#e2e8f0'/>
+</svg>

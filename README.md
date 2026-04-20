@@ -1,76 +1,119 @@
-# VerifiedTrust macOS Scanner (local build)
+# 🛡️ VerifiedTrust Multi-OS Identity Scanner
 
-VerifiedTrust is a lightweight, high-fidelity macOS identity and endpoint hygiene scanner aligned with financial/compliance frameworks. This local build packages the primary scanner, a plugin framework, and export options for CSV/JSON/HTML (optional PDF).
+<p align="left">
+  <img alt="platforms" src="https://img.shields.io/badge/Platforms-macOS%20%7C%20Linux%20%7C%20Windows-2563eb">
+  <img alt="cloud" src="https://img.shields.io/badge/Cloud-AWS%20%7C%20Azure%20%7C%20GCP-0ea5e9">
+  <img alt="exports" src="https://img.shields.io/badge/Exports-CSV%20%7C%20JSON%20%7C%20HTML%20%7C%20PDF-16a34a">
+  <img alt="mode" src="https://img.shields.io/badge/Release-Design%20Partner%20Beta-f59e0b">
+</p>
 
-## Features
+VerifiedTrust is a lightweight identity hygiene scanner for local + cloud account posture. It helps security and IT teams detect weak identity hygiene signals quickly and generate exportable evidence aligned to major compliance frameworks.
 
-- UID-based scanning for daemon and user accounts
-- Comprehensive effort profile (age decay, activity, privilege risk, sudo usage, linked apps, password age, failed logins)
-- Service account effort decay surfaced separately (daemon UID ranges and underscore users)
-- Framework mapping (NIST, ISO, PCI, HIPAA, SOX, GDPR, COBIT, CIS, Zero Trust) with compliant/review/non-compliant evidence
-- MDM modes for Jamf (`<result>…</result>`) and Intune (single-line summary)
-- Proof-of-scan hashes (SHA3-256/STARK-style) per account
-- Export formats: CSV, JSON, HTML (PDF when `pandoc` is available)
-- Plugin architecture (inherits environment, per-account execution)
+![VerifiedTrust platform overview](docs/assets/verifiedtrust-platform-overview.svg)
 
-## Project Layout
+---
 
-```
-bin/verifiedtrust.sh      # Main scanner CLI
-plugins/                  # Optional plugins executed per account
-  ssh_keys.sh
-  firewall_check.sh
-output/                   # Placeholder output directory
-LICENSE
+## ✨ Why teams use this
+
+- 🧭 **Unified visibility** across local identities and cloud identities.
+- ⚡ **Fast posture evidence** with CSV/JSON/HTML outputs for audits and operations.
+- 🧩 **Extensible plugin model** for environment-specific controls.
+- 📜 **Framework mapping** to NIST, ISO, COBIT, CIS, Zero Trust, GDPR, SOX, PCI DSS, and HIPAA.
+
+## 🔍 Core capabilities
+
+### 🖥️ Local identity scanning
+- UID-based daemon/user account scanning on macOS and Linux.
+- Windows target mode support (PowerShell-based).
+- Effort profile scoring with risk labels and service-account decay context.
+
+### ☁️ Cloud identity scanning
+- **AWS** IAM users with depth checks (e.g., MFA/key hygiene indicators).
+- **Azure** user posture signals (e.g., auth methods / role-assignment pressure).
+- **GCP** service-account posture signals (e.g., key/binding indicators).
+
+### 🔐 Trust and governance controls
+- Optional self-integrity enforcement with `KNOWN_GOOD_HASH`.
+- Plugin trust mode (`PLUGIN_TRUST_MODE=strict|permissive`).
+- Plugin execution allowlisting (`PLUGIN_ALLOWLIST`).
+
+### 📦 Output and evidence
+- Export formats: `csv`, `json`, `html`, optional `pdf`.
+- Per-scan logs + scan IDs for traceability.
+- Proof artifacts generated alongside account findings.
+
+---
+
+## 🗂️ Project layout
+
+```text
+bin/verifiedtrust.sh                         # Main scanner CLI
+plugins/                                     # Optional per-account plugins
+docs/assets/verifiedtrust-platform-overview.svg
+GO_TO_MARKET_AND_GO_LIVE_ASSESSMENT.md      # GTM and readiness guidance
+OPERATIONS_RUNBOOK.md                        # Packaging, release, support, rollback
+REVIEW.md                                    # Repo findings and recommendations
 README.md
 ```
 
-## Usage
+---
+
+## 🚀 Quick start
 
 ```bash
-# Basic scan (daemon + user accounts)
+# 1) Basic local scan (auto platform detection)
 bin/verifiedtrust.sh -v
 
-# Minimal framework mapping, limit exports, enable Jamf EA mode
-bin/verifiedtrust.sh -f minimal -e csv,json -m jamf
+# 2) Linux targeted scan + all cloud providers
+bin/verifiedtrust.sh -o linux -c all -e csv,json
 
-# Custom UID range and HTML export
-bin/verifiedtrust.sh -u 0,1000 -e html
+# 3) Minimal framework mapping + Jamf EA summary mode
+bin/verifiedtrust.sh -f minimal -e csv,json -m jamf
 ```
 
-### Options
-- `-u <min,max>`: UID range to scan (default `0,500`)
-- `-f <full|minimal>`: Framework set to include
-- `-v`: Verbose logging to console (always logs to `~/VerifiedTrust-MacOS/MizanLogs`)
-- `-e <csv,json,html,pdf>`: Export formats (comma separated)
-- `-m <none|jamf|intune>`: MDM output modes
-- `-h`: Help/usage
+## ⚙️ CLI options
 
-Environment variables:
-- `KNOWN_GOOD_HASH`: SHA256 for integrity enforcement (skips check when unset)
-- `PLUGIN_DIR`: Override plugin directory (default `./plugins`)
-- `PARALLEL`: When set and GNU `parallel` is present, enables concurrent account processing
+- `-u <min,max>`: UID range (default `0,500`)
+- `-f <full|minimal>`: framework mapping depth
+- `-v`: verbose console logging
+- `-e <csv,json,html,pdf>`: export formats
+- `-m <none|jamf|intune>`: MDM output mode
+- `-o <auto|macos|linux|windows>`: target OS mode
+- `-c <none|aws|azure|gcp|all>`: cloud scan scope
+- `-h`: help
 
-## Plugin Architecture
+## 🌍 Environment variables
 
-Plugins are sourced for each account and can emit structured strings that are appended to JSON results. Each plugin must expose a `plugin_main` function and can read the `PLUGIN_USER` environment variable. Example: `plugins/ssh_keys.sh` counts SSH keys and flags keys older than 180 days; `plugins/firewall_check.sh` reports macOS firewall status.
+- `KNOWN_GOOD_HASH`: optional SHA256 integrity enforcement
+- `PLUGIN_DIR`: plugin directory override
+- `PLUGIN_TRUST_MODE`: `strict` (default) or `permissive`
+- `PLUGIN_ALLOWLIST`: comma-separated plugin basenames to allow
+- `PARALLEL`: requests parallel mode (local build currently runs sequential for stability)
 
-Network-focused plugins included in this build:
+---
 
-- `plugins/remote_access.sh`: surfaces SSH, Apple Remote Events, Screen Sharing, and ARD enablement
-- `plugins/vpn_clients.sh`: inventories configured VPN profiles and connected tunnels, plus common client processes
-- `plugins/network_mounts.sh`: reports active SMB/AFP mounts and current `/Volumes` entries for the user
+## 📁 Outputs
 
-## Outputs
+- Logs: `~/VerifiedTrust-<PLATFORM>/MizanLogs/scan_<id>.log`
+- Errors: `~/VerifiedTrust-<PLATFORM>/MizanLogs/errors_<id>.log`
+- CSV: `~/VerifiedTrust-<PLATFORM>/VerifiedTrust_<PLATFORM>_ACCOUNTS_2025.csv`
+- JSON: `~/VerifiedTrust-<PLATFORM>/VerifiedTrust_<PLATFORM>_ACCOUNTS_2025.json`
+- HTML: `~/VerifiedTrust-<PLATFORM>/VerifiedTrust_<PLATFORM>_ACCOUNTS_2025.html`
 
-- **Logs**: `~/VerifiedTrust-MacOS/MizanLogs/scan_<id>.log` and `errors_<id>.log`
-- **CSV**: `~/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.csv`
-- **JSON**: `~/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.json`
-- **HTML**: `~/VerifiedTrust-MacOS/VerifiedTrust_macOS_ACCOUNTS_2025.html` (PDF if `pandoc` is installed and `pdf` export requested)
-- Exports now include a `ServiceDecayNote` column/field to highlight dormant or inactive service principals
+---
 
-## Notes
+## 📘 Business and go-live docs
 
-- The scanner relies on macOS utilities such as `dscl`, `pwpolicy`, `launchctl`, and `defaults`; running outside macOS will limit functionality.
-- The integrity check is optional until you set `KNOWN_GOOD_HASH` to the script's SHA256.
-- MDM-aware modes summarize results for Jamf/Intune while still writing evidence to log files.
+- `GO_TO_MARKET_AND_GO_LIVE_ASSESSMENT.md` — launch posture, risk model, 30/60/90 plan.
+- `OPERATIONS_RUNBOOK.md` — packaging, release cadence, update/rollback, support SLAs.
+- `REVIEW.md` — repository review findings and improvement priorities.
+
+---
+
+## 📝 Notes
+
+- macOS mode uses native utilities (`dscl`, `pwpolicy`, `launchctl`, `defaults`).
+- Linux mode expects tools like `getent`, `chage`, `passwd`.
+- Windows mode expects PowerShell availability.
+- Cloud modes require authenticated CLI access (`aws`, `az`, `gcloud`).
+- Jamf/Intune summary modes are macOS-focused.
