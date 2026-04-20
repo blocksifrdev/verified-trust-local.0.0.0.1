@@ -41,6 +41,7 @@ VerifiedTrust is a lightweight identity hygiene scanner for local + cloud accoun
 - Export formats: `csv`, `json`, `html`, optional `pdf`.
 - Per-scan logs + scan IDs for traceability.
 - Proof artifacts generated alongside account findings.
+- Built-in default alert bundle: **Top 20 Security/IAM/PAM/Pentest checks**.
 
 ---
 
@@ -50,6 +51,7 @@ VerifiedTrust is a lightweight identity hygiene scanner for local + cloud accoun
 bin/verifiedtrust.sh                         # Main scanner CLI
 plugins/                                     # Optional per-account plugins
 docs/assets/verifiedtrust-platform-overview.svg
+packs/top20_security_iam_pam_pentest.json    # Default alerts pack (20 checks)
 GO_TO_MARKET_AND_GO_LIVE_ASSESSMENT.md      # GTM and readiness guidance
 OPERATIONS_RUNBOOK.md                        # Packaging, release, support, rollback
 REVIEW.md                                    # Repo findings and recommendations
@@ -99,6 +101,7 @@ bin/verifiedtrust.sh -f minimal -e csv,json -m jamf
 - CSV: `~/VerifiedTrust-<PLATFORM>/VerifiedTrust_<PLATFORM>_ACCOUNTS_2025.csv`
 - JSON: `~/VerifiedTrust-<PLATFORM>/VerifiedTrust_<PLATFORM>_ACCOUNTS_2025.json`
 - HTML: `~/VerifiedTrust-<PLATFORM>/VerifiedTrust_<PLATFORM>_ACCOUNTS_2025.html`
+- Result rows now include an `Alerts` field populated from the default Top 20 pack.
 
 ---
 

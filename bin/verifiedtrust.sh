@@ -189,6 +189,41 @@ csv_escape() {
     echo "\"$s\""
 }
 
+evaluate_default_alerts() {
+    local risk="$1" status="$2" policy="$3" service_note="$4" profile="$5" plugin_blob="$6" type="$7" upn="$8"
+    local alerts=""
+
+    # Security Service (5)
+    [[ "$risk" == "High-Risk" ]] && alerts+="SEC01-HighRiskIdentity; "
+    [[ "$risk" == "Ghost" ]] && alerts+="SEC02-GhostIdentity; "
+    [[ "$status" == *"Locked"* ]] && alerts+="SEC03-LockedAccount; "
+    [[ "$policy" == *"No password policy"* ]] && alerts+="SEC04-NoPasswordPolicy; "
+    [[ "$policy" == *"No expiration"* ]] && alerts+="SEC05-NoPasswordExpiration; "
+
+    # IAM (5)
+    [[ "$risk" == "Dormant" ]] && alerts+="IAM01-DormantIdentity; "
+    [[ "$policy" == *"Multiple active access keys"* ]] && alerts+="IAM02-ExcessAccessKeys; "
+    [[ "$policy" == *"No console profile"* ]] && alerts+="IAM03-NoConsoleProfile; "
+    [[ "$policy" == *"High role assignment count"* ]] && alerts+="IAM04-RoleAssignmentPressure; "
+    [[ "$policy" == *"High IAM binding count"* ]] && alerts+="IAM05-IAMBindingPressure; "
+
+    # PAM (5)
+    [[ "$profile" == *"PrivilegeRisk:20"* || "$profile" == *"PrivilegedGroup:yes"* ]] && alerts+="PAM01-PrivilegedIdentity; "
+    [[ "$profile" == *"SudoBonus:10"* ]] && alerts+="PAM02-ActiveSudoPrincipal; "
+    [[ "$service_note" == *"service"* || "$type" == "Daemon" ]] && alerts+="PAM03-ServicePrincipalReview; "
+    [[ "$policy" == *"MFA missing"* || "$policy" == *"No auth methods on record"* ]] && alerts+="PAM04-MFAWeakness; "
+    [[ "$policy" == *"Cloud policy check requires"* ]] && alerts+="PAM05-CloudPolicyVisibilityGap; "
+
+    # Pentest Readiness (5)
+    [[ "$plugin_blob" == *"ssh=enabled"* ]] && alerts+="PEN01-SSHExposure; "
+    [[ "$plugin_blob" == *"screensharing=enabled"* ]] && alerts+="PEN02-ScreenSharingExposure; "
+    [[ "$plugin_blob" == *"ard=enabled"* ]] && alerts+="PEN03-ARDExposure; "
+    [[ "$plugin_blob" == *"vpn:configured=0"* ]] && alerts+="PEN04-NoVPNBaseline; "
+    [[ "$upn" == *"admin"* || "$upn" == *"root"* ]] && alerts+="PEN05-PrivilegedNameTarget; "
+
+    echo "${alerts%; }"
+}
+
 # --------------------- MIZAN PROOF ---------------------
 mizan_proof() {
     local upn="$1" display="$2" effort="$3" risk="$4" apps="$5" frameworks="$6" status="$7" policy_violations="$8" effort_profile="$9" service_note="${10:-}" 
@@ -577,7 +612,7 @@ run_plugins() {
 # --------------------- MAIN SCAN ---------------------
 results=()
 json_results=()
-html_table="<table><tr><th>UPN</th><th>Name</th><th>Effort</th><th>Effort Profile</th><th>Risk</th><th>Linked Apps</th><th>Frameworks</th><th>Status</th><th>Policy Violations</th><th>Service Decay</th><th>Proof</th><th>Type</th></tr>"
+html_table="<table><tr><th>UPN</th><th>Name</th><th>Effort</th><th>Effort Profile</th><th>Risk</th><th>Linked Apps</th><th>Frameworks</th><th>Status</th><th>Policy Violations</th><th>Alerts</th><th>Service Decay</th><th>Proof</th><th>Type</th></tr>"
 high_risk_count=0
 total_effort=0
 account_count=0
@@ -628,13 +663,15 @@ process_account() {
     plugin_results=()
     run_plugins "$user"
     local plugin_blob=$(printf "%s" "${plugin_results[*]}" | tr '\n' '; ')
+    local alerts
+    alerts=$(evaluate_default_alerts "$risk" "$status" "$policy_violations" "$service_note" "$profile" "$plugin_blob" "$type" "$user@local.$PLATFORM")
 
     proof=$(mizan_proof "$user@local.$PLATFORM" "$user — $realname" $effort "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile" "$service_note")
-    local r="$user@local.$PLATFORM|$user — $realname|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|$type"
+    local r="$user@local.$PLATFORM|$user — $realname|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$alerts|$service_note|${proof:0:12}...|$type"
     results+=("$r")
 
-    json_results+=("{\"upn\":\"$(json_escape "$user@local.$PLATFORM")\",\"name\":\"$(json_escape "$user — $realname")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"plugins\":\"$(json_escape "$plugin_blob")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$type")\"}")
-    html_table+="<tr><td>$user@local.$PLATFORM</td><td>$user — $realname</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>$type</td></tr>"
+    json_results+=("{\"upn\":\"$(json_escape "$user@local.$PLATFORM")\",\"name\":\"$(json_escape "$user — $realname")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"alerts\":\"$(json_escape "$alerts")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"plugins\":\"$(json_escape "$plugin_blob")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$type")\"}")
+    html_table+="<tr><td>$user@local.$PLATFORM</td><td>$user — $realname</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$alerts</td><td>$service_note</td><td>${proof:0:12}...</td><td>$type</td></tr>"
 
     ((account_count+=1))
     ((total_effort += effort))
@@ -649,12 +686,14 @@ append_cloud_identity() {
     local frameworks
     frameworks=$(map_to_frameworks "$effort")
     local status="Enabled/Unknown"
+    local alerts
+    alerts=$(evaluate_default_alerts "$risk" "$status" "$policy_violations" "$service_note" "$profile" "" "$identity_type" "$upn")
     local proof
     proof=$(mizan_proof "$upn" "$upn" "$effort" "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile" "$service_note")
-    local r="$upn|$upn|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|$identity_type"
+    local r="$upn|$upn|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$alerts|$service_note|${proof:0:12}...|$identity_type"
     results+=("$r")
-    json_results+=("{\"upn\":\"$(json_escape "$upn")\",\"name\":\"$(json_escape "$upn")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$identity_type")\"}")
-    html_table+="<tr><td>$upn</td><td>$upn</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>$identity_type</td></tr>"
+    json_results+=("{\"upn\":\"$(json_escape "$upn")\",\"name\":\"$(json_escape "$upn")\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"alerts\":\"$(json_escape "$alerts")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"$(json_escape "$identity_type")\"}")
+    html_table+="<tr><td>$upn</td><td>$upn</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$alerts</td><td>$service_note</td><td>${proof:0:12}...</td><td>$identity_type</td></tr>"
     ((account_count+=1))
     ((total_effort += effort))
     [[ "$risk" == "High-Risk" || "$risk" == "Ghost" ]] && ((high_risk_count+=1))
@@ -794,10 +833,12 @@ if [[ "$PLATFORM" == "macos" ]] && { [[ -f /var/db/ConfigurationProfiles/Setting
     policy_violations="None"
     service_note="MDM agent flagged as service account"
     proof=$(mizan_proof "mdm-agent@local" "MDM Agent" $effort "$risk" "$linked_apps" "$frameworks" "$status" "$policy_violations" "$profile" "$service_note")
-    mdm_row="mdm-agent@local|MDM Agent|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$service_note|${proof:0:12}...|MDM"
+    local mdm_alerts
+    mdm_alerts=$(evaluate_default_alerts "$risk" "$status" "$policy_violations" "$service_note" "$profile" "" "MDM" "mdm-agent@local")
+    mdm_row="mdm-agent@local|MDM Agent|$effort|$profile|$risk|$linked_apps|$frameworks|$status|$policy_violations|$mdm_alerts|$service_note|${proof:0:12}...|MDM"
     results+=("$mdm_row")
-    json_results+=("{\"upn\":\"mdm-agent@local\",\"name\":\"MDM Agent\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"MDM\"}")
-    html_table+="<tr><td>mdm-agent@local</td><td>MDM Agent</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$service_note</td><td>${proof:0:12}...</td><td>MDM</td></tr>"
+    json_results+=("{\"upn\":\"mdm-agent@local\",\"name\":\"MDM Agent\",\"effort\":$effort,\"effort_profile\":\"$(json_escape "$profile")\",\"risk\":\"$(json_escape "$risk")\",\"linked_apps\":\"$(json_escape "$linked_apps")\",\"frameworks\":\"$(json_escape "$frameworks")\",\"status\":\"$(json_escape "$status")\",\"policy_violations\":\"$(json_escape "$policy_violations")\",\"alerts\":\"$(json_escape "$mdm_alerts")\",\"service_decay_note\":\"$(json_escape "$service_note")\",\"proof\":\"$(json_escape "${proof:0:12}...")\",\"type\":\"MDM\"}")
+    html_table+="<tr><td>mdm-agent@local</td><td>MDM Agent</td><td>$effort</td><td>$profile</td><td>$risk</td><td>$linked_apps</td><td>$frameworks</td><td>$status</td><td>$policy_violations</td><td>$mdm_alerts</td><td>$service_note</td><td>${proof:0:12}...</td><td>MDM</td></tr>"
 
     ((account_count+=1))
     ((total_effort += effort))
@@ -831,22 +872,22 @@ fi
 if (( account_count > 0 )); then
     echo -e "\n\e[95m================ ACCOUNTS SCANNED — RESULTS ================\e[0m\n" >&3
 
-    printf "%-44s %-32s %8s %-120s %-12s %-50s %-100s %-20s %-30s %-32s %14s %s\n" "UPN" "Name" "Effort" "Effort Profile" "Risk" "Linked Apps" "Frameworks" "Status" "Policy Violations" "Service Decay" "Mizan Proof" "Type" >&3
+    printf "%-44s %-32s %8s %-90s %-12s %-36s %-70s %-20s %-24s %-28s %-24s %14s %s\n" "UPN" "Name" "Effort" "Effort Profile" "Risk" "Linked Apps" "Frameworks" "Status" "Policy Violations" "Alerts" "Service Decay" "Mizan Proof" "Type" >&3
     printf "%s\n" "----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------" >&3
 
     for r in "${results[@]}"; do
-        IFS='|' read -r upn name effort profile risk apps frameworks status policy service_note proof type <<< "$r"
+        IFS='|' read -r upn name effort profile risk apps frameworks status policy alerts service_note proof type <<< "$r"
         color=32; (( effort < 20 )) && color=31; (( effort >= 20 && effort < 50 )) && color=33; (( effort >= 80 )) && color=92
-        printf "\e[${color}m%-44s\e[0m %-32s %8s %-120s %-12s %-50s %-100s %-20s %-30s %-32s \e[90m%s\e[0m %s\n" "$upn" "$name" "$effort" "$profile" "$risk" "$apps" "$frameworks" "$status" "$policy" "$service_note" "$proof" "$type" >&3
+        printf "\e[${color}m%-44s\e[0m %-32s %8s %-90s %-12s %-36s %-70s %-20s %-24s %-28s %-24s \e[90m%s\e[0m %s\n" "$upn" "$name" "$effort" "$profile" "$risk" "$apps" "$frameworks" "$status" "$policy" "$alerts" "$service_note" "$proof" "$type" >&3
     done
 fi
 
 if [[ "$EXPORT_FORMATS" == *"csv"* ]]; then
     {
-        echo "UPN,Name,EffortScore,EffortProfile,RiskLevel,LinkedApplications,FrameworkMappings,AccountStatus,PolicyViolations,ServiceDecayNote,MizanProof,Type"
+        echo "UPN,Name,EffortScore,EffortProfile,RiskLevel,LinkedApplications,FrameworkMappings,AccountStatus,PolicyViolations,Alerts,ServiceDecayNote,MizanProof,Type"
         for r in "${results[@]}"; do
-            IFS='|' read -r upn name effort profile risk apps frameworks status policy service_note proof type <<< "$r"
-            echo "$(csv_escape "$upn"),$(csv_escape "$name"),$(csv_escape "$effort"),$(csv_escape "$profile"),$(csv_escape "$risk"),$(csv_escape "$apps"),$(csv_escape "$frameworks"),$(csv_escape "$status"),$(csv_escape "$policy"),$(csv_escape "$service_note"),$(csv_escape "$proof"),$(csv_escape "$type")"
+            IFS='|' read -r upn name effort profile risk apps frameworks status policy alerts service_note proof type <<< "$r"
+            echo "$(csv_escape "$upn"),$(csv_escape "$name"),$(csv_escape "$effort"),$(csv_escape "$profile"),$(csv_escape "$risk"),$(csv_escape "$apps"),$(csv_escape "$frameworks"),$(csv_escape "$status"),$(csv_escape "$policy"),$(csv_escape "$alerts"),$(csv_escape "$service_note"),$(csv_escape "$proof"),$(csv_escape "$type")"
         done
     } > "$CSV_OUT"
 fi
