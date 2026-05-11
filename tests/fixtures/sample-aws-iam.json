@@ -1,0 +1,45 @@
+{
+  "RoleDetailList": [
+    {
+      "RoleName": "TestLambdaRole",
+      "RoleId": "AROAITESTLAMBDAROLE1",
+      "Arn": "arn:aws:iam::123456789012:role/TestLambdaRole",
+      "CreateDate": "2023-06-01T10:00:00Z",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": { "Service": "lambda.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [
+        { "PolicyName": "AmazonDynamoDBReadOnlyAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess" }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "TestAdminRole",
+      "RoleId": "AROAITESTADMINROLE11",
+      "Arn": "arn:aws:iam::123456789012:role/TestAdminRole",
+      "CreateDate": "2022-01-01T00:00:00Z",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": { "AWS": "*" },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [
+        { "PolicyName": "AdministratorAccess", "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess" }
+      ],
+      "RolePolicyList": []
+    }
+  ],
+  "UserDetailList": []
+}

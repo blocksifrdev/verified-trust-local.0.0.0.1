@@ -1,0 +1,1 @@
+{"version":3,"file":"trustRiskScoring.d.ts","sourceRoot":"","sources":["../../src/scoring/trustRiskScoring.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,SAAS,EAAY,MAAM,eAAe,CAAC;AAC9D,OAAO,EAAE,aAAa,EAAE,MAAM,wBAAwB,CAAC;AASvD,wBAAgB,aAAa,CAAC,QAAQ,EAAE,QAAQ,EAAE,KAAK,EAAE,aAAa,GAAG,SAAS,CAyFjF;AAED,wBAAgB,UAAU,CAAC,KAAK,EAAE,aAAa,GAAG,SAAS,CA0B1D"}

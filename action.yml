@@ -1,0 +1,24 @@
+name: VerifiedTrust Local
+description: Open-source non-human identity authority and execution inflection scanner
+author: BlockSiFr
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  scan-path:
+    description: Path to scan
+    required: false
+    default: "."
+  output-dir:
+    description: Output directory for reports
+    required: false
+    default: "verifiedtrust-report"
+  edition:
+    description: Edition (community, pro, business, enterprise)
+    required: false
+    default: "community"
+
+runs:
+  using: node20
+  main: dist/action/index.js

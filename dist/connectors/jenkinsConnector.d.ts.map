@@ -1,0 +1,1 @@
+{"version":3,"file":"jenkinsConnector.d.ts","sourceRoot":"","sources":["../../src/connectors/jenkinsConnector.ts"],"names":[],"mappings":"AAEA,OAAO,EAAqD,UAAU,EAAE,MAAM,eAAe,CAAC;AAI9F,OAAO,EAAE,cAAc,EAAE,MAAM,uBAAuB,CAAC;AAWvD,wBAAgB,gBAAgB,CAAC,KAAK,EAAE,cAAc,EAAE,EAAE,YAAY,EAAE,GAAG,CAAC,MAAM,EAAE,MAAM,CAAC,GAAG,UAAU,CAiGvG"}

@@ -1,0 +1,9 @@
+{
+  "name": "sample-app",
+  "version": "1.0.0",
+  "description": "Sample application for VerifiedTrust Local scanning",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest"
+  }
+}

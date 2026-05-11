@@ -1,0 +1,4 @@
+identity_name,identity_type,source,owner,environment,permission,resource,last_used,created_at
+svc-database,service_account,aws_iam,platform-team,production,s3:GetObject,arn:aws:s3:::data-bucket,2025-01-15T10:00:00Z,2022-06-01T00:00:00Z
+bot-deploy,bot_user,github_actions,,production,repo:write,github.com/myorg/myrepo,2025-03-20T08:00:00Z,2023-01-10T00:00:00Z
+api-token-reporting,api_token,okta,analytics-team,staging,read,reporting-api,2026-04-01T12:00:00Z,2024-02-15T00:00:00Z

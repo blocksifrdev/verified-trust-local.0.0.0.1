@@ -1,0 +1,96 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "displayName": "data-pipeline-service",
+    "appId": "11111111-aaaa-bbbb-cccc-222222222222",
+    "servicePrincipalType": "Application",
+    "createdDateTime": "2023-01-15T09:00:00Z",
+    "signInActivity": {
+      "lastSignInDateTime": "2024-11-01T14:23:00Z"
+    },
+    "owners": [],
+    "appRoles": [
+      { "id": "r1", "displayName": "Data.Read", "value": "Data.Read" },
+      { "id": "r2", "displayName": "Storage.Write", "value": "Storage.Write" }
+    ],
+    "passwordCredentials": [
+      { "keyId": "cred1", "displayName": "client-secret-1", "endDateTime": "2025-01-15T00:00:00Z" }
+    ],
+    "keyCredentials": []
+  },
+  {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "displayName": "ci-deploy-automation",
+    "appId": "22222222-bbbb-cccc-dddd-333333333333",
+    "servicePrincipalType": "Application",
+    "createdDateTime": "2022-06-01T10:00:00Z",
+    "signInActivity": {
+      "lastSignInDateTime": "2023-12-10T08:45:00Z"
+    },
+    "owners": [
+      { "id": "owner1", "displayName": "Platform Engineering Team" }
+    ],
+    "appRoles": [
+      { "id": "r3", "displayName": "Deployment.Write", "value": "Deployment.Write" }
+    ],
+    "passwordCredentials": [],
+    "keyCredentials": [
+      { "keyId": "key1", "displayName": "cert-2022", "endDateTime": "2024-06-01T00:00:00Z" }
+    ]
+  },
+  {
+    "id": "c3d4e5f6-a7b8-9012-cdef-012345678902",
+    "displayName": "reporting-managed-identity",
+    "appId": "33333333-cccc-dddd-eeee-444444444444",
+    "servicePrincipalType": "ManagedIdentity",
+    "createdDateTime": "2023-09-20T12:00:00Z",
+    "signInActivity": {
+      "lastSignInDateTime": "2026-04-28T16:00:00Z"
+    },
+    "owners": [],
+    "appRoles": [],
+    "passwordCredentials": [],
+    "keyCredentials": []
+  },
+  {
+    "id": "d4e5f6a7-b8c9-0123-defa-123456789003",
+    "displayName": "okta-saml-integration",
+    "appId": "44444444-dddd-eeee-ffff-555555555555",
+    "servicePrincipalType": "Application",
+    "createdDateTime": "2021-03-10T08:00:00Z",
+    "signInActivity": {
+      "lastSignInDateTime": "2026-03-15T11:30:00Z"
+    },
+    "owners": [
+      { "id": "owner2", "displayName": "Identity Team" }
+    ],
+    "appRoles": [
+      { "id": "r4", "displayName": "User.Read.All", "value": "User.Read.All" }
+    ],
+    "passwordCredentials": [],
+    "keyCredentials": []
+  },
+  {
+    "id": "e5f6a7b8-c9d0-1234-efab-234567890004",
+    "displayName": "k8s-workload-identity",
+    "appId": "55555555-eeee-ffff-0000-666666666666",
+    "servicePrincipalType": "Application",
+    "createdDateTime": "2024-02-01T09:00:00Z",
+    "signInActivity": null,
+    "owners": [],
+    "appRoles": [
+      { "id": "r5", "displayName": "KeyVault.Read", "value": "KeyVault.Read" }
+    ],
+    "passwordCredentials": [],
+    "keyCredentials": [
+      { "keyId": "key2", "displayName": "workload-cert", "endDateTime": "2025-02-01T00:00:00Z" }
+    ],
+    "federatedIdentityCredentials": [
+      {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "subject": "repo:myorg/myrepo:environment:production",
+        "audiences": ["api://AzureADTokenExchange"]
+      }
+    ]
+  }
+]

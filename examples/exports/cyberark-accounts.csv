@@ -1,0 +1,5 @@
+AccountName,Safe,Platform,Owner,TargetMachine,LastPasswordChangeDate,PasswordStatus
+svc-database-prod,Production-DB-Safe,WinServerLocal,platform-team,db-prod-01.internal,2025-11-15,Compliant
+svc-backup-agent,Infrastructure-Safe,UnixSSH,,backup-srv-01.internal,2024-03-20,NonCompliant
+deploy-automation,CICD-Safe,WindowsServiceAccount,devops-team,deploy-srv-01.internal,2025-12-01,Compliant
+svc-monitoring,Monitoring-Safe,WinServerLocal,,monitoring-01.internal,2023-08-10,NonCompliant

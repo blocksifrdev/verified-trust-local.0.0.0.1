@@ -1,0 +1,1 @@
+{"version":3,"file":"authorityEdge.d.ts","sourceRoot":"","sources":["../../src/core/authorityEdge.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,aAAa,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AAGtD,wBAAgB,mBAAmB,CAAC,OAAO,EAAE,OAAO,CAAC,aAAa,CAAC,GAAG;IAAE,cAAc,EAAE,MAAM,CAAC;IAAC,YAAY,EAAE,MAAM,CAAC;IAAC,QAAQ,EAAE,MAAM,CAAC;IAAC,YAAY,EAAE,YAAY,CAAA;CAAE,GAAG,aAAa,CAenL"}

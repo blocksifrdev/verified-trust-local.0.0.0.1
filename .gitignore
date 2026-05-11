@@ -1,0 +1,21 @@
+# CortexTrace session artifacts — regenerate locally with: cortextrace report
+.cortextrace/receipts/
+.cortextrace/sessions/
+.cortextrace/reports/
+.cortextrace/latest-session.json
+.cortextrace/consent.json
+
+node_modules/
+coverage/
+*.log
+.DS_Store
+
+verifiedtrust-report/
+vt-data/
+*.tgz
+
+.env
+.env.*
+!.env.example
+
+verified-trust-local.0.0.0.1/

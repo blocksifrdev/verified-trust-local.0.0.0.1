@@ -1,0 +1,34 @@
+[
+  {
+    "id": "test-sp-001",
+    "displayName": "test-service-principal",
+    "appId": "test-app-id-001",
+    "servicePrincipalType": "Application",
+    "createdDateTime": "2023-01-01T00:00:00Z",
+    "signInActivity": {
+      "lastSignInDateTime": "2023-06-15T10:00:00Z"
+    },
+    "owners": [],
+    "appRoles": [
+      { "id": "r1", "displayName": "Data.Read", "value": "Data.Read" }
+    ],
+    "passwordCredentials": [
+      { "keyId": "cred1", "displayName": "test-secret" }
+    ],
+    "keyCredentials": []
+  },
+  {
+    "id": "test-mi-001",
+    "displayName": "test-managed-identity",
+    "appId": "test-app-id-002",
+    "servicePrincipalType": "ManagedIdentity",
+    "createdDateTime": "2024-01-01T00:00:00Z",
+    "signInActivity": null,
+    "owners": [
+      { "id": "owner1", "displayName": "Test Owner" }
+    ],
+    "appRoles": [],
+    "passwordCredentials": [],
+    "keyCredentials": []
+  }
+]

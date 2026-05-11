@@ -1,0 +1,1 @@
+{"version":3,"file":"severity.d.ts","sourceRoot":"","sources":["../../src/scoring/severity.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,MAAM,eAAe,CAAC;AAEzC,wBAAgB,eAAe,CAAC,QAAQ,EAAE,QAAQ,GAAG,MAAM,CAQ1D;AAED,wBAAgB,eAAe,CAAC,KAAK,EAAE,MAAM,GAAG,QAAQ,CAMvD;AAED,wBAAgB,iBAAiB,CAAC,UAAU,EAAE,QAAQ,EAAE,GAAG,QAAQ,CAKlE"}

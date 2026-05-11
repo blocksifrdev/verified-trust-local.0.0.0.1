@@ -1,0 +1,1 @@
+{"version":3,"file":"inflectionPointDetector.d.ts","sourceRoot":"","sources":["../../src/detectors/inflectionPointDetector.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,eAAe,EAAE,MAAM,eAAe,CAAC;AAEhD,OAAO,EAAE,aAAa,EAAE,MAAM,wBAAwB,CAAC;AAIvD,wBAAgB,sBAAsB,CAAC,KAAK,EAAE,aAAa,GAAG,eAAe,EAAE,CAsI9E"}

@@ -1,0 +1,102 @@
+{
+  "RoleDetailList": [
+    {
+      "RoleName": "LambdaExecutionRole",
+      "RoleId": "AROAI3DUMMY1111111111",
+      "Arn": "arn:aws:iam::123456789012:role/LambdaExecutionRole",
+      "CreateDate": "2023-03-15T10:00:00Z",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": { "Service": "lambda.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [
+        { "PolicyName": "AmazonDynamoDBReadOnlyAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess" }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "DeploymentRole",
+      "RoleId": "AROAI3DUMMY2222222222",
+      "Arn": "arn:aws:iam::123456789012:role/DeploymentRole",
+      "CreateDate": "2022-01-10T09:00:00Z",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::123456789012:root"
+            },
+            "Action": "sts:AssumeRole"
+          },
+          {
+            "Effect": "Allow",
+            "Principal": { "Federated": "token.actions.githubusercontent.com" },
+            "Action": "sts:AssumeRoleWithWebIdentity"
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [
+        { "PolicyName": "PowerUserAccess", "PolicyArn": "arn:aws:iam::aws:policy/PowerUserAccess" }
+      ],
+      "RolePolicyList": []
+    },
+    {
+      "RoleName": "DataPipelineRole",
+      "RoleId": "AROAI3DUMMY3333333333",
+      "Arn": "arn:aws:iam::123456789012:role/DataPipelineRole",
+      "CreateDate": "2023-07-20T11:00:00Z",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": [
+        {
+          "PolicyName": "S3FullAccessInline",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": ["s3:*"],
+                "Resource": ["arn:aws:s3:::data-pipeline-*", "arn:aws:s3:::data-pipeline-*/*"]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "UserDetailList": [
+    {
+      "UserName": "ci-deploy-user",
+      "UserId": "AIDAI3DUMMY1111111111",
+      "Arn": "arn:aws:iam::123456789012:user/ci-deploy-user",
+      "CreateDate": "2022-06-01T08:00:00Z",
+      "AccessKeyMetadata": [
+        {
+          "AccessKeyId": "AKIAIOSFODNN7EXAMPLE",
+          "Status": "Active",
+          "CreateDate": "2022-06-01T08:00:00Z"
+        }
+      ],
+      "LoginProfile": null,
+      "AttachedManagedPolicies": [
+        { "PolicyName": "AmazonS3ReadOnlyAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess" }
+      ]
+    }
+  ]
+}

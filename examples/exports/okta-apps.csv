@@ -1,0 +1,4 @@
+id,label,status,created,lastUpdated,signOnMode,credentials_client_id,credentials_client_secret
+0oa1abc123def456GH,Data Pipeline Integration,ACTIVE,2023-01-10T09:00:00.000Z,2024-11-01T14:00:00.000Z,OPENID_CONNECT,client_abc123def456,sk-***[REDACTED]***
+0oa2bcd234efg567HI,CI/CD Deployment Service,ACTIVE,2022-06-15T10:00:00.000Z,2023-12-20T08:00:00.000Z,OPENID_CONNECT,client_bcd234efg567,sk-***[REDACTED]***
+0oa3cde345fgh678IJ,Analytics Dashboard App,INACTIVE,2021-03-01T08:00:00.000Z,2022-09-10T12:00:00.000Z,OPENID_CONNECT,client_cde345fgh678,sk-***[REDACTED]***

@@ -1,0 +1,1 @@
+{"version":3,"file":"limits.d.ts","sourceRoot":"","sources":["../../src/core/limits.ts"],"names":[],"mappings":"AAAA,eAAO,MAAM,mBAAmB,KAAK,CAAC;AAEtC,wBAAgB,iBAAiB,CAAC,CAAC,EACjC,KAAK,EAAE,CAAC,EAAE,EACV,OAAO,EAAE,MAAM,GACd;IAAE,KAAK,EAAE,CAAC,EAAE,CAAC;IAAC,OAAO,EAAE,OAAO,CAAC;IAAC,KAAK,EAAE,MAAM,CAAA;CAAE,CAgBjD"}

@@ -1,0 +1,34 @@
+[
+  {
+    "roleAssignmentId": "/subscriptions/12345678-abcd-1234-abcd-123456789012/resourceGroups/production-rg/providers/Microsoft.Authorization/roleAssignments/ra001",
+    "scope": "/subscriptions/12345678-abcd-1234-abcd-123456789012/resourceGroups/production-rg",
+    "roleDefinitionName": "Contributor",
+    "principalId": "a1b2c3d4-0000-0000-0000-000000000001",
+    "principalType": "ServicePrincipal",
+    "principalName": "ci-deploy-automation"
+  },
+  {
+    "roleAssignmentId": "/subscriptions/12345678-abcd-1234-abcd-123456789012/providers/Microsoft.Authorization/roleAssignments/ra002",
+    "scope": "/subscriptions/12345678-abcd-1234-abcd-123456789012",
+    "roleDefinitionName": "Owner",
+    "principalId": "a1b2c3d4-0000-0000-0000-000000000002",
+    "principalType": "ServicePrincipal",
+    "principalName": "platform-automation-sp"
+  },
+  {
+    "roleAssignmentId": "/subscriptions/12345678-abcd-1234-abcd-123456789012/resourceGroups/data-rg/providers/Microsoft.Authorization/roleAssignments/ra003",
+    "scope": "/subscriptions/12345678-abcd-1234-abcd-123456789012/resourceGroups/data-rg",
+    "roleDefinitionName": "Storage Blob Data Reader",
+    "principalId": "a1b2c3d4-0000-0000-0000-000000000003",
+    "principalType": "ManagedIdentity",
+    "principalName": "reporting-managed-identity"
+  },
+  {
+    "roleAssignmentId": "/subscriptions/12345678-abcd-1234-abcd-123456789012/resourceGroups/k8s-rg/providers/Microsoft.Authorization/roleAssignments/ra004",
+    "scope": "/subscriptions/12345678-abcd-1234-abcd-123456789012/resourceGroups/k8s-rg",
+    "roleDefinitionName": "AcrPull",
+    "principalId": "a1b2c3d4-0000-0000-0000-000000000004",
+    "principalType": "ManagedIdentity",
+    "principalName": "k8s-workload-managed-identity"
+  }
+]
